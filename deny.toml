@@ -1,0 +1,23 @@
+[advisories]
+version = 2
+# Ignore dev-dependencies for advisory checks (benchmarks only)
+ignore = [
+    "RUSTSEC-2021-0139",  # ansi_term unmaintained
+    "RUSTSEC-2024-0375",  # atty unmaintained
+    "RUSTSEC-2021-0145",  # atty unsound
+    "RUSTSEC-2025-0124",  # rand_os unmaintained
+    "RUSTSEC-2024-0006",  # shlex vulnerability
+]
+
+[licenses]
+version = 2
+allow = [
+    "MIT",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-3-Clause",
+    "Zlib",
+    "Unicode-3.0",
+    "LGPL-2.1-or-later",
+    "AGPL-3.0-or-later",
+]

@@ -1,0 +1,9 @@
+/target
+.idea
+.vscode
+benchmark_results/
+Cargo.lock
+*.orig
+*.profraw
+*.profdata
+.DS_Store

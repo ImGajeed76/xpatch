@@ -1,0 +1,615 @@
+Running benches/stress.rs (target/release/deps/stress-ed36cc79c90af4a6)
+Gnuplot not found, using plotters backend
+sizes/encode/100000     time:   [1.8101 µs 1.8460 µs 1.8913 µs]
+                        thrpt:  [49.242 GiB/s 50.452 GiB/s 51.451 GiB/s]
+                 change:
+                        time:   [+17.532% +19.357% +21.483%] (p = 0.00 < 0.10)
+                        thrpt:  [−17.684% −16.218% −14.917%]
+                        Performance has regressed.
+sizes/decode/100000     time:   [1.6188 µs 1.6392 µs 1.6635 µs]
+                        thrpt:  [55.987 GiB/s 56.815 GiB/s 57.533 GiB/s]
+                 change:
+                        time:   [+20.161% +21.371% +22.770%] (p = 0.00 < 0.10)
+                        thrpt:  [−18.547% −17.608% −16.779%]
+                        Performance has regressed.
+sizes/encode/1000000    time:   [23.451 µs 23.774 µs 24.117 µs]
+                        thrpt:  [38.617 GiB/s 39.175 GiB/s 39.714 GiB/s]
+                 change:
+                        time:   [+31.283% +32.834% +34.506%] (p = 0.00 < 0.10)
+                        thrpt:  [−25.654% −24.718% −23.829%]
+                        Performance has regressed.
+sizes/decode/1000000    time:   [21.441 µs 21.701 µs 21.893 µs]
+                        thrpt:  [42.540 GiB/s 42.916 GiB/s 43.437 GiB/s]
+                 change:
+                        time:   [+28.482% +30.794% +33.601%] (p = 0.00 < 0.10)
+                        thrpt:  [−25.150% −23.544% −22.168%]
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+sizes/encode/5000000    time:   [113.06 µs 114.08 µs 114.63 µs]
+                        thrpt:  [40.624 GiB/s 40.821 GiB/s 41.186 GiB/s]
+                 change:
+                        time:   [+30.467% +32.056% +33.573%] (p = 0.00 < 0.10)
+                        thrpt:  [−25.135% −24.275% −23.352%]
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) low mild
+sizes/decode/5000000    time:   [108.02 µs 108.70 µs 109.40 µs]
+                        thrpt:  [42.563 GiB/s 42.839 GiB/s 43.109 GiB/s]
+                 change:
+                        time:   [+29.243% +30.836% +32.383%] (p = 0.00 < 0.10)
+                        thrpt:  [−24.462% −23.568% −22.626%]
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) low mild
+
+data_patterns/encode/realistic
+                        time:   [1.8580 µs 1.8780 µs 1.8980 µs]
+                        thrpt:  [49.069 GiB/s 49.592 GiB/s 50.125 GiB/s]
+                 change:
+                        time:   [+18.438% +22.443% +27.384%] (p = 0.00 < 0.10)
+                        thrpt:  [−21.497% −18.329% −15.567%]
+                        Performance has regressed.
+Found 8 outliers among 100 measurements (8.00%)
+  5 (5.00%) high mild
+  3 (3.00%) high severe
+data_patterns/encode/code
+                        time:   [1.7928 µs 1.8167 µs 1.8403 µs]
+                        thrpt:  [50.607 GiB/s 51.265 GiB/s 51.947 GiB/s]
+                 change:
+                        time:   [+14.304% +16.472% +19.066%] (p = 0.00 < 0.10)
+                        thrpt:  [−16.013% −14.142% −12.514%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+data_patterns/encode/repetitive
+                        time:   [1.8311 µs 1.8557 µs 1.8813 µs]
+                        thrpt:  [49.505 GiB/s 50.186 GiB/s 50.862 GiB/s]
+                 change:
+                        time:   [+16.237% +19.283% +23.230%] (p = 0.00 < 0.10)
+                        thrpt:  [−18.851% −16.166% −13.969%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+data_patterns/encode/json
+                        time:   [1.8149 µs 1.8395 µs 1.8662 µs]
+                        thrpt:  [49.905 GiB/s 50.629 GiB/s 51.316 GiB/s]
+                 change:
+                        time:   [+16.235% +18.849% +21.946%] (p = 0.00 < 0.10)
+                        thrpt:  [−17.996% −15.859% −13.967%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+
+change_types/encode/insert_start
+                        time:   [1.7531 µs 1.7760 µs 1.8005 µs]
+                        thrpt:  [51.726 GiB/s 52.439 GiB/s 53.123 GiB/s]
+                 change:
+                        time:   [+16.115% +18.565% +21.337%] (p = 0.00 < 0.10)
+                        thrpt:  [−17.585% −15.658% −13.878%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+change_types/encode/insert_middle
+                        time:   [1.8116 µs 1.8372 µs 1.8632 µs]
+                        thrpt:  [49.986 GiB/s 50.692 GiB/s 51.409 GiB/s]
+                 change:
+                        time:   [+15.250% +18.201% +21.651%] (p = 0.00 < 0.10)
+                        thrpt:  [−17.797% −15.399% −13.232%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+change_types/encode/insert_end
+                        time:   [1.7964 µs 1.8175 µs 1.8393 µs]
+                        thrpt:  [50.635 GiB/s 51.243 GiB/s 51.844 GiB/s]
+                 change:
+                        time:   [+15.067% +17.575% +20.418%] (p = 0.00 < 0.10)
+                        thrpt:  [−16.956% −14.948% −13.094%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+change_types/encode/append_small
+                        time:   [2.4713 µs 2.5008 µs 2.5308 µs]
+                        thrpt:  [36.799 GiB/s 37.242 GiB/s 37.686 GiB/s]
+                 change:
+                        time:   [+12.692% +14.985% +17.366%] (p = 0.00 < 0.10)
+                        thrpt:  [−14.797% −13.032% −11.262%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+change_types/encode/append_large
+                        time:   [66.468 µs 67.450 µs 68.401 µs]
+                        thrpt:  [1.3616 GiB/s 1.3808 GiB/s 1.4011 GiB/s]
+                 change:
+                        time:   [+12.977% +16.429% +20.156%] (p = 0.00 < 0.10)
+                        thrpt:  [−16.775% −14.111% −11.486%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+change_types/encode/truncate_small
+                        time:   [1.6144 µs 1.6354 µs 1.6572 µs]
+                        thrpt:  [56.200 GiB/s 56.946 GiB/s 57.688 GiB/s]
+                 change:
+                        time:   [+15.801% +18.774% +22.252%] (p = 0.00 < 0.10)
+                        thrpt:  [−18.202% −15.807% −13.645%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  4 (4.00%) high mild
+  1 (1.00%) high severe
+change_types/encode/truncate_large
+                        time:   [1.4420 µs 1.4577 µs 1.4741 µs]
+                        thrpt:  [63.180 GiB/s 63.888 GiB/s 64.584 GiB/s]
+                 change:
+                        time:   [+12.423% +14.989% +17.888%] (p = 0.00 < 0.10)
+                        thrpt:  [−15.174% −13.035% −11.050%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+change_types/encode/mixed
+                        time:   [49.138 µs 49.913 µs 50.672 µs]
+                        thrpt:  [1.8379 GiB/s 1.8659 GiB/s 1.8953 GiB/s]
+                 change:
+                        time:   [+25.816% +31.012% +36.197%] (p = 0.00 < 0.10)
+                        thrpt:  [−26.577% −23.671% −20.519%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+change_types/encode/worst_case
+                        time:   [194.27 µs 196.88 µs 199.49 µs]
+                        thrpt:  [478.06 MiB/s 484.39 MiB/s 490.90 MiB/s]
+                 change:
+                        time:   [+27.128% +30.539% +34.920%] (p = 0.00 < 0.10)
+                        thrpt:  [−25.882% −23.395% −21.339%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+
+zstd_comparison/encode/without_zstd
+                        time:   [38.539 µs 39.230 µs 39.923 µs]
+                        thrpt:  [2.3328 GiB/s 2.3740 GiB/s 2.4166 GiB/s]
+                 change:
+                        time:   [+23.823% +27.752% +32.832%] (p = 0.00 < 0.10)
+                        thrpt:  [−24.717% −21.723% −19.239%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+zstd_comparison/encode/with_zstd
+                        time:   [50.023 µs 50.726 µs 51.481 µs]
+                        thrpt:  [1.8091 GiB/s 1.8360 GiB/s 1.8618 GiB/s]
+                 change:
+                        time:   [+26.684% +35.754% +49.059%] (p = 0.00 < 0.10)
+                        thrpt:  [−32.912% −26.337% −21.063%]
+                        Performance has regressed.
+Found 8 outliers among 100 measurements (8.00%)
+  4 (4.00%) high mild
+  4 (4.00%) high severe
+
+roundtrip/full_cycle/10000
+                        time:   [15.146 µs 15.403 µs 15.659 µs]
+                        thrpt:  [609.02 MiB/s 619.13 MiB/s 629.67 MiB/s]
+                 change:
+                        time:   [+27.044% +33.818% +42.930%] (p = 0.00 < 0.10)
+                        thrpt:  [−30.035% −25.271% −21.287%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+roundtrip/full_cycle/100000
+                        time:   [54.894 µs 55.614 µs 56.358 µs]
+                        thrpt:  [1.6525 GiB/s 1.6746 GiB/s 1.6966 GiB/s]
+                 change:
+                        time:   [+24.906% +34.201% +46.489%] (p = 0.00 < 0.10)
+                        thrpt:  [−31.735% −25.485% −19.940%]
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  3 (3.00%) high mild
+  4 (4.00%) high severe
+roundtrip/full_cycle/1000000
+                        time:   [493.52 µs 503.37 µs 513.50 µs]
+                        thrpt:  [1.8137 GiB/s 1.8502 GiB/s 1.8871 GiB/s]
+                 change:
+                        time:   [+31.136% +36.694% +42.687%] (p = 0.00 < 0.10)
+                        thrpt:  [−29.917% −26.844% −23.743%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+
+edge_cases/encode/empty_to_data
+                        time:   [173.04 ns 174.85 ns 176.68 ns]
+                        change: [+14.064% +16.092% +18.130%] (p = 0.00 < 0.10)
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+edge_cases/encode/data_to_empty
+                        time:   [79.035 ns 79.756 ns 80.486 ns]
+                        change: [+13.853% +16.019% +18.880%] (p = 0.00 < 0.10)
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+edge_cases/encode/single_byte_change
+                        time:   [577.70 ns 584.71 ns 591.81 ns]
+                        change: [+10.437% +12.524% +14.867%] (p = 0.00 < 0.10)
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+
+
+╔════════════════════════════════════════════════════════════════════════════════════╗
+║                         UNIFIED BENCHMARK SUMMARY                                  ║
+╚════════════════════════════════════════════════════════════════════════════════════╝
+
+📊 COMPRESSION METRICS:
+  Average delta ratio:     0.042
+  Average space savings:   94.8%
+  Best compression:        0.000
+  Worst compression:       1.000
+
+⚡ PERFORMANCE METRICS:
+  Average encode time:     1586 µs
+  Average decode time:     137 µs
+
+Test Case                                  Original      Delta    Ratio   Savings  Encode (µs)  Decode (µs)
+──────────────────────────────────────────────────────────────────────────────────────────────────────────────
+size_97.7 KB                                97.7 KB       16 B    0.000    100.0%        29058           37
+size_976.6 KB                              976.6 KB       16 B    0.000    100.0%           19          328
+size_4.8 MB                                  4.8 MB       17 B    0.000    100.0%          115         1745
+pattern_realistic                           97.7 KB       16 B    0.000    100.0%            4            4
+pattern_code                                97.7 KB       16 B    0.000    100.0%            5            7
+pattern_repetitive                          97.7 KB       16 B    0.000    100.0%            4            4
+pattern_json                                97.7 KB       16 B    0.000    100.0%            4            3
+change_insert_start                         97.7 KB       14 B    0.000    100.0%            4            5
+change_insert_middle                        97.7 KB       16 B    0.000    100.0%            8            5
+change_insert_end                           97.7 KB       16 B    0.000    100.0%           10           16
+change_append_small                         97.7 KB        6 B    0.000    100.0%            8            5
+change_append_large                         97.7 KB        7 B    0.000    100.0%           64           32
+change_truncate_small                       97.7 KB        7 B    0.000    100.0%            9            6
+change_truncate_large                       97.7 KB        7 B    0.000    100.0%            5            5
+change_mixed                                97.7 KB       68 B    0.001     99.9%           83           25
+change_worst_case                           97.7 KB       23 B    0.000    100.0%          196           29
+zstd_disabled                               97.7 KB      480 B    0.005     99.5%           38            5
+zstd_enabled                                97.7 KB       68 B    0.001     99.9%          118           19
+roundtrip_9.8 KB                             9.8 KB       56 B    0.006     99.4%           37            6
+roundtrip_97.7 KB                           97.7 KB       68 B    0.001     99.9%           71           11
+roundtrip_976.6 KB                         976.6 KB       70 B    0.000    100.0%         8153          966
+edge_empty_to_data                              0 B       13 B    1.000      0.0%            3            1
+edge_data_to_empty                             13 B        3 B    0.000     76.9%            1            0
+edge_single_byte                             9.8 KB       11 B    0.001     99.9%           48           41
+
+
+     Running benches/stress_compared.rs (target/release/deps/stress_compared-f3264f61ad04058d)
+Gnuplot not found, using plotters backend
+library_comparison_sizes/xpatch/100000
+                        time:   [3.0170 µs 3.0296 µs 3.0472 µs]
+                        thrpt:  [30.563 GiB/s 30.741 GiB/s 30.869 GiB/s]
+                 change:
+                        time:   [+1.5534% +2.2802% +3.1133%] (p = 0.00 < 0.10)
+                        thrpt:  [−3.0193% −2.2293% −1.5297%]
+                        Change within noise threshold.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high mild
+library_comparison_sizes/xdelta3/100000
+                        time:   [74.779 µs 81.466 µs 88.821 µs]
+                        thrpt:  [1.0485 GiB/s 1.1432 GiB/s 1.2454 GiB/s]
+                 change:
+                        time:   [−0.7372% +3.0445% +9.1838%] (p = 0.36 > 0.10)
+                        thrpt:  [−8.4113% −2.9545% +0.7427%]
+                        No change in performance detected.
+Found 2 outliers among 10 measurements (20.00%)
+  2 (20.00%) high severe
+library_comparison_sizes/qbsdiff/100000
+                        time:   [2.8645 ms 2.8869 ms 2.9089 ms]
+                        thrpt:  [32.784 MiB/s 33.035 MiB/s 33.293 MiB/s]
+                 change:
+                        time:   [+25.243% +27.474% +30.190%] (p = 0.00 < 0.10)
+                        thrpt:  [−23.189% −21.553% −20.156%]
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+library_comparison_sizes/xpatch/1000000
+                        time:   [39.832 µs 41.251 µs 43.073 µs]
+                        thrpt:  [21.622 GiB/s 22.577 GiB/s 23.381 GiB/s]
+                 change:
+                        time:   [+24.971% +29.451% +33.461%] (p = 0.00 < 0.10)
+                        thrpt:  [−25.072% −22.751% −19.981%]
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) low mild
+library_comparison_sizes/xdelta3/1000000
+                        time:   [2.1004 ms 2.1140 ms 2.1276 ms]
+                        thrpt:  [448.24 MiB/s 451.12 MiB/s 454.04 MiB/s]
+                 change:
+                        time:   [+28.098% +29.777% +32.205%] (p = 0.00 < 0.10)
+                        thrpt:  [−24.360% −22.945% −21.935%]
+                        Performance has regressed.
+Found 1 outliers among 10 measurements (10.00%)
+  1 (10.00%) high severe
+library_comparison_sizes/qbsdiff/1000000
+                        time:   [28.919 ms 29.159 ms 29.486 ms]
+                        thrpt:  [32.343 MiB/s 32.706 MiB/s 32.977 MiB/s]
+                 change:
+                        time:   [+26.584% +28.827% +30.813%] (p = 0.00 < 0.10)
+                        thrpt:  [−23.555% −22.376% −21.001%]
+                        Performance has regressed.
+
+library_comparison_patterns/xpatch/realistic
+                        time:   [3.5701 µs 3.6101 µs 3.6502 µs]
+                        thrpt:  [25.515 GiB/s 25.798 GiB/s 26.087 GiB/s]
+                 change:
+                        time:   [+17.562% +20.343% +24.232%] (p = 0.00 < 0.10)
+                        thrpt:  [−19.506% −16.904% −14.938%]
+                        Performance has regressed.
+Found 1 outliers among 100 measurements (1.00%)
+  1 (1.00%) high severe
+library_comparison_patterns/xdelta3/realistic
+                        time:   [92.766 µs 94.240 µs 95.652 µs]
+                        thrpt:  [997.03 MiB/s 1012.0 MiB/s 1.0039 GiB/s]
+                 change:
+                        time:   [+22.669% +26.475% +32.415%] (p = 0.00 < 0.10)
+                        thrpt:  [−24.480% −20.933% −18.480%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+library_comparison_patterns/qbsdiff/realistic
+                        time:   [3.5112 ms 3.5763 ms 3.6426 ms]
+                        thrpt:  [26.181 MiB/s 26.667 MiB/s 27.161 MiB/s]
+                 change:
+                        time:   [+24.978% +27.530% +29.606%] (p = 0.00 < 0.10)
+                        thrpt:  [−22.843% −21.587% −19.986%]
+                        Performance has regressed.
+library_comparison_patterns/xpatch/code
+                        time:   [3.6043 µs 3.6401 µs 3.6750 µs]
+                        thrpt:  [25.342 GiB/s 25.585 GiB/s 25.839 GiB/s]
+                 change:
+                        time:   [+19.336% +22.250% +26.218%] (p = 0.00 < 0.10)
+                        thrpt:  [−20.772% −18.200% −16.203%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  3 (3.00%) high mild
+  1 (1.00%) high severe
+library_comparison_patterns/xdelta3/code
+                        time:   [90.076 µs 91.630 µs 93.163 µs]
+                        thrpt:  [1023.7 MiB/s 1.0164 GiB/s 1.0339 GiB/s]
+                 change:
+                        time:   [+21.502% +25.140% +29.423%] (p = 0.00 < 0.10)
+                        thrpt:  [−22.734% −20.089% −17.697%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  3 (3.00%) high mild
+  2 (2.00%) high severe
+library_comparison_patterns/qbsdiff/code
+                        time:   [3.4478 ms 3.5098 ms 3.5727 ms]
+                        thrpt:  [26.693 MiB/s 27.172 MiB/s 27.661 MiB/s]
+                 change:
+                        time:   [+27.459% +29.733% +32.165%] (p = 0.00 < 0.10)
+                        thrpt:  [−24.337% −22.918% −21.543%]
+                        Performance has regressed.
+library_comparison_patterns/xpatch/repetitive
+                        time:   [3.5761 µs 3.6197 µs 3.6643 µs]
+                        thrpt:  [25.416 GiB/s 25.729 GiB/s 26.043 GiB/s]
+                 change:
+                        time:   [+20.528% +23.786% +27.318%] (p = 0.00 < 0.10)
+                        thrpt:  [−21.456% −19.215% −17.032%]
+                        Performance has regressed.
+Found 19 outliers among 100 measurements (19.00%)
+  12 (12.00%) low mild
+  2 (2.00%) high mild
+  5 (5.00%) high severe
+library_comparison_patterns/xdelta3/repetitive
+                        time:   [102.92 µs 104.39 µs 105.88 µs]
+                        thrpt:  [900.68 MiB/s 913.55 MiB/s 926.59 MiB/s]
+                 change:
+                        time:   [+23.369% +26.976% +30.449%] (p = 0.00 < 0.10)
+                        thrpt:  [−23.341% −21.245% −18.943%]
+                        Performance has regressed.
+Found 5 outliers among 100 measurements (5.00%)
+  5 (5.00%) high mild
+Benchmarking library_comparison_patterns/qbsdiff/repetitive: Warming up for 2.0000 s
+Warning: Unable to complete 100 samples in 5.0s. You may wish to increase target time to 8.4s, enable flat sampling, or reduce sample count to 50.
+library_comparison_patterns/qbsdiff/repetitive
+                        time:   [1.6424 ms 1.6605 ms 1.6782 ms]
+                        thrpt:  [56.826 MiB/s 57.433 MiB/s 58.065 MiB/s]
+                 change:
+                        time:   [+27.805% +33.066% +40.015%] (p = 0.00 < 0.10)
+                        thrpt:  [−28.579% −24.849% −21.756%]
+                        Performance has regressed.
+Found 15 outliers among 100 measurements (15.00%)
+  10 (10.00%) low mild
+  2 (2.00%) high mild
+  3 (3.00%) high severe
+⚠️  xdelta3 decode failed for pattern_json
+library_comparison_patterns/xpatch/json
+                        time:   [3.4281 µs 3.4859 µs 3.5481 µs]
+                        thrpt:  [26.248 GiB/s 26.717 GiB/s 27.167 GiB/s]
+                 change:
+                        time:   [+12.273% +14.360% +16.700%] (p = 0.00 < 0.10)
+                        thrpt:  [−14.310% −12.557% −10.932%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  1 (1.00%) high mild
+  1 (1.00%) high severe
+library_comparison_patterns/xdelta3/json
+                        time:   [93.693 µs 94.849 µs 95.985 µs]
+                        thrpt:  [993.56 MiB/s 1005.5 MiB/s 1017.9 MiB/s]
+                 change:
+                        time:   [+24.384% +27.989% +32.354%] (p = 0.00 < 0.10)
+                        thrpt:  [−24.445% −21.868% −19.604%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+library_comparison_patterns/qbsdiff/json
+                        time:   [3.4933 ms 3.5444 ms 3.5967 ms]
+                        thrpt:  [26.515 MiB/s 26.907 MiB/s 27.300 MiB/s]
+                 change:
+                        time:   [+24.472% +26.210% +27.964%] (p = 0.00 < 0.10)
+                        thrpt:  [−21.853% −20.767% −19.660%]
+                        Performance has regressed.
+
+library_comparison_changes/xpatch/insert_middle
+                        time:   [3.5895 µs 3.6290 µs 3.6689 µs]
+                        thrpt:  [25.384 GiB/s 25.663 GiB/s 25.946 GiB/s]
+                 change:
+                        time:   [+19.670% +22.180% +25.032%] (p = 0.00 < 0.10)
+                        thrpt:  [−20.021% −18.154% −16.437%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+library_comparison_changes/xdelta3/insert_middle
+                        time:   [91.318 µs 93.239 µs 95.180 µs]
+                        thrpt:  [1002.0 MiB/s 1022.8 MiB/s 1.0199 GiB/s]
+                 change:
+                        time:   [+23.084% +27.682% +33.868%] (p = 0.00 < 0.10)
+                        thrpt:  [−25.299% −21.680% −18.755%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  1 (1.00%) high mild
+  2 (2.00%) high severe
+library_comparison_changes/qbsdiff/insert_middle
+                        time:   [3.5115 ms 3.5705 ms 3.6301 ms]
+                        thrpt:  [26.271 MiB/s 26.710 MiB/s 27.158 MiB/s]
+                 change:
+                        time:   [+26.481% +28.583% +30.674%] (p = 0.00 < 0.10)
+                        thrpt:  [−23.473% −22.229% −20.937%]
+                        Performance has regressed.
+library_comparison_changes/xpatch/append_small
+                        time:   [4.5578 µs 4.6126 µs 4.6668 µs]
+                        thrpt:  [19.956 GiB/s 20.191 GiB/s 20.433 GiB/s]
+                 change:
+                        time:   [+15.220% +17.504% +19.893%] (p = 0.00 < 0.10)
+                        thrpt:  [−16.592% −14.896% −13.209%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  3 (3.00%) high mild
+library_comparison_changes/xdelta3/append_small
+                        time:   [6.2498 µs 6.3654 µs 6.4859 µs]
+                        thrpt:  [14.359 GiB/s 14.631 GiB/s 14.902 GiB/s]
+                 change:
+                        time:   [+14.123% +16.587% +19.195%] (p = 0.00 < 0.10)
+                        thrpt:  [−16.104% −14.227% −12.375%]
+                        Performance has regressed.
+Found 2 outliers among 100 measurements (2.00%)
+  2 (2.00%) high mild
+library_comparison_changes/qbsdiff/append_small
+                        time:   [3.6130 ms 3.6753 ms 3.7388 ms]
+                        thrpt:  [25.508 MiB/s 25.948 MiB/s 26.395 MiB/s]
+                 change:
+                        time:   [+26.244% +28.316% +30.634%] (p = 0.00 < 0.10)
+                        thrpt:  [−23.450% −22.067% −20.788%]
+                        Performance has regressed.
+library_comparison_changes/xpatch/append_large
+                        time:   [101.72 µs 103.00 µs 104.24 µs]
+                        thrpt:  [914.87 MiB/s 925.92 MiB/s 937.51 MiB/s]
+                 change:
+                        time:   [+14.966% +17.913% +20.716%] (p = 0.00 < 0.10)
+                        thrpt:  [−17.161% −15.192% −13.017%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+library_comparison_changes/xdelta3/append_large
+                        time:   [6.3345 µs 6.4302 µs 6.5200 µs]
+                        thrpt:  [14.284 GiB/s 14.483 GiB/s 14.702 GiB/s]
+                 change:
+                        time:   [+13.784% +16.946% +21.239%] (p = 0.00 < 0.10)
+                        thrpt:  [−17.518% −14.491% −12.114%]
+                        Performance has regressed.
+Found 4 outliers among 100 measurements (4.00%)
+  2 (2.00%) high mild
+  2 (2.00%) high severe
+library_comparison_changes/qbsdiff/append_large
+                        time:   [3.7546 ms 3.8199 ms 3.8868 ms]
+                        thrpt:  [24.536 MiB/s 24.966 MiB/s 25.400 MiB/s]
+                 change:
+                        time:   [+27.433% +29.413% +31.696%] (p = 0.00 < 0.10)
+                        thrpt:  [−24.068% −22.728% −21.528%]
+                        Performance has regressed.
+library_comparison_changes/xpatch/mixed
+                        time:   [55.687 µs 56.502 µs 57.314 µs]
+                        thrpt:  [1.6250 GiB/s 1.6483 GiB/s 1.6724 GiB/s]
+                 change:
+                        time:   [+22.609% +26.831% +30.699%] (p = 0.00 < 0.10)
+                        thrpt:  [−23.488% −21.155% −18.440%]
+                        Performance has regressed.
+Found 3 outliers among 100 measurements (3.00%)
+  2 (2.00%) high mild
+  1 (1.00%) high severe
+library_comparison_changes/xdelta3/mixed
+                        time:   [131.94 µs 133.80 µs 135.72 µs]
+                        thrpt:  [702.68 MiB/s 712.76 MiB/s 722.81 MiB/s]
+                 change:
+                        time:   [+22.634% +26.156% +30.222%] (p = 0.00 < 0.10)
+                        thrpt:  [−23.208% −20.733% −18.456%]
+                        Performance has regressed.
+Found 7 outliers among 100 measurements (7.00%)
+  6 (6.00%) high mild
+  1 (1.00%) high severe
+library_comparison_changes/qbsdiff/mixed
+                        time:   [3.4207 ms 3.4846 ms 3.5492 ms]
+                        thrpt:  [26.870 MiB/s 27.368 MiB/s 27.880 MiB/s]
+                 change:
+                        time:   [+24.363% +26.618% +28.776%] (p = 0.00 < 0.10)
+                        thrpt:  [−22.346% −21.022% −19.590%]
+                        Performance has regressed.
+
+
+╔════════════════════════════════════════════════════════════════════════════════════╗
+║                    LIBRARY COMPARISON - UNIFIED SUMMARY                            ║
+╚════════════════════════════════════════════════════════════════════════════════════╝
+
+📊 LIBRARY COMPARISON:
+
+Library          Avg Ratio       Best      Worst Avg Enc (µs) Avg Dec (µs)
+────────────────────────────────────────────────────────────────────────────────
+xdelta3              0.000      0.000      0.000          296           12
+xpatch               0.000      0.000      0.001         1849           44
+qbsdiff              0.002      0.000      0.002         6181         1419
+
+📈 DETAILED RESULTS:
+
+Library         Test Case                        Original      Delta    Ratio   Savings  Encode (µs)  Decode (µs)
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+xpatch          size_97.7 KB                      97.7 KB       16 B    0.000    100.0%        18239           32
+xdelta3         size_97.7 KB                      97.7 KB       34 B    0.000    100.0%          404           20
+qbsdiff         size_97.7 KB                      97.7 KB      178 B    0.002     99.8%         2052          469
+xpatch          size_976.6 KB                    976.6 KB       16 B    0.000    100.0%           20          328
+xdelta3         size_976.6 KB                    976.6 KB       34 B    0.000    100.0%         1674           45
+qbsdiff         size_976.6 KB                    976.6 KB      222 B    0.000    100.0%        27769         2165
+xpatch          pattern_realistic                 97.7 KB       16 B    0.000    100.0%            5            5
+xdelta3         pattern_realistic                 97.7 KB       34 B    0.000    100.0%           91            5
+qbsdiff         pattern_realistic                 97.7 KB      178 B    0.002     99.8%         2483         1067
+xpatch          pattern_code                      97.7 KB       16 B    0.000    100.0%            4            4
+xdelta3         pattern_code                      97.7 KB       34 B    0.000    100.0%           95            5
+qbsdiff         pattern_code                      97.7 KB      178 B    0.002     99.8%         2829          273
+xpatch          pattern_repetitive                97.7 KB       16 B    0.000    100.0%            5            3
+xdelta3         pattern_repetitive                97.7 KB       28 B    0.000    100.0%           97            4
+qbsdiff         pattern_repetitive                97.7 KB      165 B    0.002     99.8%        10614          320
+xpatch          pattern_json                      97.7 KB       16 B    0.000    100.0%            5            4
+qbsdiff         pattern_json                      97.7 KB      178 B    0.002     99.8%         2365          270
+xpatch          change_insert_middle              97.7 KB       16 B    0.000    100.0%            5            5
+xdelta3         change_insert_middle              97.7 KB       34 B    0.000    100.0%           92            5
+qbsdiff         change_insert_middle              97.7 KB      178 B    0.002     99.8%         2986          324
+xpatch          change_append_small               97.7 KB        6 B    0.000    100.0%           12            7
+xdelta3         change_append_small               97.7 KB       23 B    0.000    100.0%           15           13
+qbsdiff         change_append_small               97.7 KB      166 B    0.002     99.8%         3802          259
+xpatch          change_append_large               97.7 KB        7 B    0.000    100.0%           65           28
+xdelta3         change_append_large               97.7 KB       23 B    0.000    100.0%           11            9
+qbsdiff         change_append_large               97.7 KB      178 B    0.002     99.8%         3158          335
+xpatch          change_mixed                      97.7 KB       68 B    0.001     99.9%          134           32
+xdelta3         change_mixed                      97.7 KB       44 B    0.000    100.0%          186            7
+qbsdiff         change_mixed                      97.7 KB      201 B    0.002     99.8%         3753         8711
