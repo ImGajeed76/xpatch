@@ -1,0 +1,85 @@
+❯ cargo run --bin git_benchmark --features benchmark -- --repos tokio,neovim,git --max-commits 0
+warning: `panic` setting is ignored for `bench` profile
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.08s
+warning: the following packages contain code that will be rejected by a future version of Rust: cexpr v0.3.6, nom v4.2.3
+note: to see what the problems were, use the option `--future-incompat-report`, or run `cargo report future-incompatibilities --id 1`
+     Running `target/debug/git_benchmark --repos tokio,neovim,git --max-commits 0`
+[2025-12-07T15:34:53Z INFO  git_benchmark] 🚀 Starting Delta Compression Benchmark
+[2025-12-07T15:34:53Z INFO  git_benchmark] Output directory: ./benchmark_results
+[2025-12-07T15:34:53Z INFO  git_benchmark] 🔍 Checking dependencies...
+[2025-12-07T15:34:53Z INFO  git_benchmark]
+    📦 Processing repository: git
+[2025-12-07T15:34:53Z INFO  git_benchmark]    Git version control system (~300MB, 50k commits)
+[2025-12-07T15:34:53Z INFO  git_benchmark]    Using existing repository at ./benchmark_results/repos/git
+[01:46:56] ######################################## 4/4 ✅ git
+    ✅ builtin/add.c (56334 commits)
+  ============================== 56334/56334 commits Complete
+    ✅ diff.c (76112 commits)
+  ============================== 76112/76112 commits Complete
+    ✅ revision.c (72825 commits)
+  ============================== 72825/72825 commits Complete
+    ✅ builtin/add.c (56334 commits)
+  ============================== 56334/56334 commits Complete                                                                                                                                      ✅ diff.c (76112 commits)
+  ============================== 76112/76112 commits Complete
+    ✅ revision.c (72825 commits)
+  ============================== 72825/72825 commits Complete
+    ✅ Makefile (78338 commits)
+  ============================== 78338/78338 commits Complete
+[00:10:30] ######################################## 2/2 ✅ neovim
+    ✅ src/nvim/main.c (33820 commits)
+  ============================== 33820/33820 commits Complete
+    ✅ runtime/lua/vim/_editor.lua (13937 commits)
+  ============================== 13937/13937 commits Complete                                                                                                                                  [2025-12-07T17:32:20Z INFO  git_benchmark]    ✓ Completed: 47757 benchmarks
+[2025-12-07T17:32:20Z INFO  git_benchmark]
+    ✅ src/nvim/main.c (33820 commits)
+  ============================== 33820/33820 commits Complete
+    ✅ runtime/lua/vim/_editor.lua (13937 commits)
+  ============================== 13937/13937 commits Complete
+[00:00:40] ######################################## 2/2 ✅ tokio
+    ✅ tokio/src/runtime/mod.rs (3183 commits)
+  ============================== 3183/3183 commits Complete
+    ✅ tokio/src/net/tcp/stream.rs (2829 commits)
+  ============================== 2829/2829 commits Complete                                                                                                                                    [2025-12-07T17:33:00Z INFO  git_benchmark]    ✓ Completed: 6012 benchmarks
+[2025-12-07T17:33:01Z INFO  git_benchmark] 💾 Master report saved: ./benchmark_results/master_results.csv
+
+
+╔═══════════════════════════════════════════════════════════════════════════╗
+║                  DELTA COMPRESSION - FINAL SUMMARY                         ║
+╚═══════════════════════════════════════════════════════════════════════════╝
+
+
+📊 REPOSITORY: git
+────────────────────────────────────────────────────────────────────────────────
+  Benchmarks run: 283609
+  Average file size: 82.0 KB
+
+  Average Compression Ratios:
+    xpatch:  0.0051 (99.5% savings)
+    xdelta3: 0.0237 (97.6% savings)
+    qbsdiff: 0.0081 (99.2% savings)
+
+📊 REPOSITORY: neovim
+────────────────────────────────────────────────────────────────────────────────
+  Benchmarks run: 47757
+  Average file size: 54.5 KB
+
+  Average Compression Ratios:
+    xpatch:  0.0002 (100.0% savings)
+    xdelta3: 0.0005 (99.9% savings)
+    qbsdiff: 0.0029 (99.7% savings)
+
+📊 REPOSITORY: tokio
+────────────────────────────────────────────────────────────────────────────────
+  Benchmarks run: 6012
+  Average file size: 27.1 KB
+
+  Average Compression Ratios:
+    xpatch:  0.0012 (99.9% savings)
+    xdelta3: 0.0024 (99.8% savings)
+    qbsdiff: 0.0085 (99.1% savings)
+
+
+🏆 OVERALL WINNER:
+   xpatch (0.0043 avg ratio)
+[2025-12-07T17:33:01Z INFO  git_benchmark]
+    ✅ Benchmark complete! Results saved to: ./benchmark_results
