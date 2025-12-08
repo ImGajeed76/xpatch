@@ -133,6 +133,22 @@ struct Args {
     /// Number of parallel threads (0 = auto-detect)
     #[arg(short, long, default_value = "0")]
     threads: usize,
+
+    /// Maximum files to test per repository (0 = use predefined list)
+    #[arg(long, default_value = "0")]
+    max_files: usize,
+
+    /// Discover ALL files from current HEAD (unlimited)
+    #[arg(long, default_value = "false")]
+    all_files_head: bool,
+
+    /// Discover ALL files from entire git history (unlimited, VERY SLOW)
+    #[arg(long, default_value = "false")]
+    all_files: bool,
+
+    /// Process multiple files in parallel (may increase memory usage)
+    #[arg(long, default_value = "false")]
+    parallel_files: bool,
 }
 
 struct BenchmarkRunner {
@@ -233,10 +249,43 @@ impl BenchmarkRunner {
 
         let repos_to_test = self.get_selected_repos()?;
 
-        // Calculate total work
-        let total_files: usize = repos_to_test.iter().map(|r| r.files.len()).sum();
+        let mut total_files = 0;
+        let mut repo_files_map = HashMap::new();
 
-        // Create master progress bar
+        for repo_config in &repos_to_test {
+            let repo_path = self.repos_dir.join(repo_config.name);
+            let repo = self.ensure_repo_cloned(repo_config, &repo_path)?;
+
+            let files = match (
+                self.args.all_files,
+                self.args.all_files_head,
+                self.args.max_files,
+            ) {
+                (true, _, _) => {
+                    // --all-files: discover from history, unlimited
+                    self.get_all_files_in_history(&repo)?
+                }
+                (false, true, _) => {
+                    // --all-files-head: discover from HEAD, unlimited
+                    self.get_all_files_at_head(&repo)?
+                }
+                (false, false, 0) => {
+                    // Default: use predefined list
+                    repo_config.files.iter().map(|s| s.to_string()).collect()
+                }
+                (false, false, n) => {
+                    // --max-files N: discover from HEAD, limited
+                    self.get_all_files_at_head(&repo)?
+                        .into_iter()
+                        .take(n)
+                        .collect()
+                }
+            };
+
+            total_files += files.len();
+            repo_files_map.insert(repo_config.name, files);
+        }
+
         let master_pb = self.mp.add(ProgressBar::new(total_files as u64));
         master_pb.set_style(
             ProgressStyle::default_bar()
@@ -247,13 +296,23 @@ impl BenchmarkRunner {
         master_pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
         let total_benchmarks = Arc::new(Mutex::new(0usize));
+        let mut processed_files = 0;
 
         for repo_config in repos_to_test {
             println!("\n{}", "═".repeat(80));
             log::info!("📦 Processing repository: {}", repo_config.name);
             log::info!("   {}", repo_config.description);
 
-            match self.benchmark_repo(repo_config, Arc::clone(&total_benchmarks), &master_pb) {
+            // Get pre-discovered files
+            let files_to_benchmark = repo_files_map.get(repo_config.name).unwrap();
+
+            match self.benchmark_repo(
+                repo_config,
+                files_to_benchmark,
+                Arc::clone(&total_benchmarks),
+                &master_pb,
+                &mut processed_files,
+            ) {
                 Ok(count) => {
                     log::info!("   ✓ Completed: {} benchmarks", count);
                 }
@@ -267,6 +326,12 @@ impl BenchmarkRunner {
         }
 
         master_pb.finish_with_message("✅ All files processed");
+
+        {
+            let mut writer = self.csv_writer.lock().unwrap();
+            writer.flush()?;
+        }
+
         self.print_final_summary()?;
 
         log::info!("\n✅ Benchmark complete!");
@@ -312,18 +377,99 @@ impl BenchmarkRunner {
         Ok(selected)
     }
 
+    fn benchmark_file_sequential(
+        &self,
+        repo: &Repository,
+        repo_name: &str,
+        file_path: &str,
+        local_count: Arc<Mutex<usize>>,
+        csv_writer: &Arc<Mutex<csv::Writer<std::fs::File>>>,
+        benchmark_counter: &Arc<Mutex<usize>>,
+    ) -> Result<usize> {
+        let commits = self.get_commit_history(repo, file_path)?;
+
+        let total_commits = if self.args.max_commits > 0 {
+            commits.len().min(self.args.max_commits)
+        } else {
+            commits.len()
+        };
+
+        if total_commits < 2 {
+            anyhow::bail!(
+                "Not enough commits found (need at least 2, found {})",
+                commits.len()
+            );
+        }
+
+        // Create progress bar for commits
+        let commit_pb = self.mp.add(ProgressBar::new((total_commits - 1) as u64));
+        commit_pb.set_style(
+            ProgressStyle::default_bar()
+                .template("    {bar:40} {pos}/{len} commits | ETA: {eta}")
+                .unwrap()
+                .progress_chars("=>-"),
+        );
+        commit_pb.enable_steady_tick(std::time::Duration::from_millis(100));
+
+        let mut count = 0;
+        for i in 0..total_commits - 1 {
+            let from = &commits[i];
+            let to = &commits[i + 1];
+            let distance = i + 1;
+
+            match self.benchmark_commit_pair(repo, repo_name, file_path, from, to, distance) {
+                Ok(result) => {
+                    // Write result immediately
+                    if let Ok(mut writer) = csv_writer.lock() {
+                        let _ = writer.serialize(&result);
+                        let _ = writer.flush();
+
+                        *local_count.lock().unwrap() += 1;
+                        count += 1;
+
+                        // Update global counter
+                        let total = {
+                            let mut counter = benchmark_counter.lock().unwrap();
+                            *counter += 1;
+                            *counter
+                        };
+
+                        // Update progress bar every 10 benchmarks
+                        if total % 10 == 0 {
+                            commit_pb.set_message(format!("[{} total]", total));
+                        }
+                    }
+                }
+                Err(e) => {
+                    log::debug!(
+                        "Failed commit pair {}->{}: {}",
+                        &from.hash[..8],
+                        &to.hash[..8],
+                        e
+                    );
+                }
+            }
+            commit_pb.inc(1);
+        }
+
+        commit_pb.finish_with_message(format!("✓ {} benchmarks", count));
+        Ok(count)
+    }
+
     fn benchmark_repo(
         &self,
         repo_config: &RepoConfig,
+        files_to_benchmark: &[String],
         total_benchmarks: Arc<Mutex<usize>>,
         master_pb: &ProgressBar,
+        _processed_files: &mut usize,
     ) -> Result<usize> {
         let repo_path = self.repos_dir.join(repo_config.name);
         let repo = self.ensure_repo_cloned(repo_config, &repo_path)?;
 
         let repo_pb = self
             .mp
-            .add(ProgressBar::new(repo_config.files.len() as u64));
+            .add(ProgressBar::new(files_to_benchmark.len() as u64));
         repo_pb.set_style(
             ProgressStyle::default_bar()
                 .template("  [{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} files | ETA: {eta} | {msg}")
@@ -335,31 +481,93 @@ impl BenchmarkRunner {
 
         let local_count = Arc::new(Mutex::new(0usize));
 
-        for (idx, file_path) in repo_config.files.iter().enumerate() {
-            repo_pb.set_position(idx as u64);
+        use std::sync::atomic::{AtomicUsize, Ordering};
+        let files_completed = Arc::new(AtomicUsize::new(0));
 
-            let file_pb = self.mp.add(ProgressBar::new_spinner());
-            file_pb.set_style(
-                ProgressStyle::default_spinner()
-                    .template("    {spinner:.green} {msg}")
-                    .unwrap(),
-            );
-            file_pb.set_message(format!("📄 {}", file_path));
+        if self.args.parallel_files {
+            files_to_benchmark.par_iter().for_each(|file_path| {
+                let repo_path = repo_path.clone();
+                let repo_name = repo_config.name.to_string();
+                let file_path = file_path.clone();
+                let local_count = Arc::clone(&local_count);
+                let csv_writer = Arc::clone(&self.csv_writer);
+                let benchmark_counter = Arc::clone(&self.benchmark_counter);
+                let mp = self.mp.clone();
 
-            match self.benchmark_file_parallel(
-                &repo,
-                repo_config.name,
-                file_path,
-                Arc::clone(&local_count),
-            ) {
-                Ok(count) => {
-                    file_pb.finish_with_message(format!("✅ {} ({} benchmarks)", file_path, count));
-                    master_pb.inc(1);
+                if let Ok(thread_repo) = Repository::open(&repo_path) {
+                    let file_pb = mp.add(ProgressBar::new_spinner());
+                    file_pb.set_style(
+                        ProgressStyle::default_spinner()
+                            .template("    {spinner:.green} {msg}")
+                            .unwrap(),
+                    );
+                    file_pb.set_message(format!("📄 {}", file_path));
+
+                    match self.benchmark_file_sequential(
+                        &thread_repo,
+                        &repo_name,
+                        &file_path,
+                        local_count,
+                        &csv_writer,
+                        &benchmark_counter,
+                    ) {
+                        Ok(count) => {
+                            file_pb.finish_with_message(format!(
+                                "✅ {} ({} benchmarks)",
+                                file_path, count
+                            ));
+                        }
+                        Err(e) => {
+                            file_pb.finish_with_message(format!("❌ {} - {}", file_path, e));
+                            log::warn!("Failed to benchmark {}: {}", file_path, e);
+                        }
+                    }
+
+                    let completed = files_completed.fetch_add(1, Ordering::Relaxed);
+                    if completed % 3 == 0 {
+                        master_pb.inc(3);
+                        repo_pb.inc(3);
+                    }
                 }
-                Err(e) => {
-                    file_pb.finish_with_message(format!("❌ {} - {}", file_path, e));
-                    log::warn!("Failed to benchmark {}: {}", file_path, e);
-                    master_pb.inc(1);
+            });
+
+            let final_completed = files_completed.load(Ordering::Relaxed);
+            let remainder = final_completed % 3;
+            if remainder > 0 {
+                master_pb.inc(remainder as u64);
+                repo_pb.inc(remainder as u64);
+            }
+        } else {
+            // Sequential processing (original working code)
+            for (idx, file_path) in files_to_benchmark.iter().enumerate() {
+                repo_pb.set_position(idx as u64);
+
+                let file_pb = self.mp.add(ProgressBar::new_spinner());
+                file_pb.set_style(
+                    ProgressStyle::default_spinner()
+                        .template("    {spinner:.green} {msg}")
+                        .unwrap(),
+                );
+                file_pb.set_message(format!("📄 {}", file_path));
+
+                match self.benchmark_file_parallel(
+                    &repo,
+                    repo_config.name,
+                    file_path,
+                    Arc::clone(&local_count),
+                ) {
+                    Ok(count) => {
+                        file_pb.finish_with_message(format!(
+                            "✅ {} ({} benchmarks)",
+                            file_path, count
+                        ));
+                        master_pb.inc(1);
+                    }
+                    Err(e) => {
+                        file_pb.finish_with_message(format!("❌ {} - {}", file_path, e));
+                        log::warn!("Failed to benchmark {}: {}", file_path, e);
+                        master_pb.inc(1);
+                    }
                 }
             }
         }
@@ -770,6 +978,126 @@ impl BenchmarkRunner {
         };
         println!("   {}", winner);
 
+        Ok(())
+    }
+
+    // Get all files at HEAD (fast)
+    fn get_all_files_at_head(&self, repo: &Repository) -> Result<Vec<String>> {
+        let pb = self.mp.add(ProgressBar::new_spinner());
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        pb.set_message("Walking repository tree...");
+        pb.enable_steady_tick(std::time::Duration::from_millis(100));
+
+        let head = repo.head()?;
+        let commit = head.peel_to_commit()?;
+        let tree = commit.tree()?;
+
+        let mut files = Vec::new();
+        self.walk_tree(repo, &tree, Path::new(""), &mut files)?;
+
+        files.sort();
+        pb.finish_with_message(format!("✓ Found {} files", files.len()));
+        Ok(files)
+    }
+
+    // Get all files from history (comprehensive but slow)
+    fn get_all_files_in_history(&self, repo: &Repository) -> Result<Vec<String>> {
+        let pb = self.mp.add(ProgressBar::new_spinner());
+        pb.set_style(
+            ProgressStyle::default_spinner()
+                .template("{spinner:.cyan} {msg}")
+                .unwrap(),
+        );
+        pb.set_message("Walking full commit history...");
+        pb.enable_steady_tick(std::time::Duration::from_millis(100));
+
+        let mut revwalk = repo.revwalk()?;
+        revwalk.push_head()?;
+
+        let mut all_files = std::collections::HashSet::new();
+        let mut commit_count = 0;
+
+        for oid in revwalk {
+            let oid = oid?;
+            let commit = repo.find_commit(oid)?;
+            let tree = commit.tree()?;
+
+            self.collect_files_from_tree(repo, &tree, Path::new(""), &mut all_files)?;
+
+            commit_count += 1;
+            if commit_count % 100 == 0 {
+                pb.set_message(format!(
+                    "Scanned {} commits, found {} files...",
+                    commit_count,
+                    all_files.len()
+                ));
+            }
+        }
+
+        pb.finish_with_message(format!(
+            "✓ Scanned {} commits, found {} unique files",
+            commit_count,
+            all_files.len()
+        ));
+
+        let mut files: Vec<String> = all_files.into_iter().collect();
+        files.sort();
+        Ok(files)
+    }
+
+    fn walk_tree(
+        &self,
+        repo: &Repository,
+        tree: &git2::Tree,
+        base_path: &Path,
+        files: &mut Vec<String>,
+    ) -> Result<()> {
+        for entry in tree {
+            let name = entry.name().unwrap_or("");
+            let entry_path = base_path.join(name);
+
+            match entry.kind() {
+                Some(git2::ObjectType::Blob) => {
+                    files.push(entry_path.to_string_lossy().to_string());
+                }
+                Some(git2::ObjectType::Tree) => {
+                    if let Ok(subtree) = repo.find_tree(entry.id()) {
+                        self.walk_tree(repo, &subtree, &entry_path, files)?;
+                    }
+                }
+                _ => {}
+            }
+        }
+        Ok(())
+    }
+
+    fn collect_files_from_tree(
+        &self,
+        repo: &Repository,
+        tree: &git2::Tree,
+        base_path: &Path,
+        files: &mut std::collections::HashSet<String>,
+    ) -> Result<()> {
+        for entry in tree {
+            let name = entry.name().unwrap_or("");
+            let entry_path = base_path.join(name);
+
+            match entry.kind() {
+                Some(git2::ObjectType::Blob) => {
+                    files.insert(entry_path.to_string_lossy().to_string());
+                }
+                Some(git2::ObjectType::Tree) => {
+                    if let Ok(subtree) = repo.find_tree(entry.id()) {
+                        self.collect_files_from_tree(repo, &subtree, &entry_path, files)?;
+                    }
+                }
+                _ => {}
+            }
+        }
         Ok(())
     }
 }
