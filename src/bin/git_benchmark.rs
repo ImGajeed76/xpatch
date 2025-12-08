@@ -40,9 +40,9 @@ use std::collections::HashMap;
 use std::fs::{self, OpenOptions};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
-use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 struct BenchmarkResult {
@@ -468,7 +468,11 @@ impl BenchmarkRunner {
         if path.len() <= width {
             format!("{:<width$}", path, width = width)
         } else {
-            format!("{}…{:<width$}", &path[..width/2-1], &path[path.len()-(width/2-2)..])
+            format!(
+                "{}…{:<width$}",
+                &path[..width / 2 - 1],
+                &path[path.len() - (width / 2 - 2)..]
+            )
         }
     }
 
@@ -483,7 +487,9 @@ impl BenchmarkRunner {
         let repo_path = self.repos_dir.join(repo_config.name);
         let repo = self.ensure_repo_cloned(repo_config, &repo_path)?;
 
-        let repo_pb = self.mp.add(ProgressBar::new(files_to_benchmark.len() as u64));
+        let repo_pb = self
+            .mp
+            .add(ProgressBar::new(files_to_benchmark.len() as u64));
         repo_pb.set_style(
             ProgressStyle::default_bar()
                 .template("  [{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} files | ETA: {eta}")
@@ -524,7 +530,8 @@ impl BenchmarkRunner {
                     ) {
                         Ok(count) => {
                             let completed = files_completed.fetch_add(1, Ordering::Relaxed) + 1;
-                            if completed % 5 == 0 { // Update every 5 files
+                            if completed % 5 == 0 {
+                                // Update every 5 files
                                 master_pb.inc(5);
                                 repo_pb.inc(5);
                             }
@@ -751,6 +758,8 @@ impl BenchmarkRunner {
         }
 
         let mut commits = Vec::new();
+        let mut last_blob_id: Option<git2::Oid> = None; // Track last seen blob
+
         for oid in revwalk {
             if limit > 0 && commits.len() >= limit {
                 break;
@@ -759,14 +768,21 @@ impl BenchmarkRunner {
             let oid = oid?;
             let commit = repo.find_commit(oid)?;
 
+            // Get blob ID for this file in current commit
             if let Ok(tree) = commit.tree()
-                && tree.get_path(Path::new(file_path)).is_ok()
+                && let Ok(entry) = tree.get_path(Path::new(file_path))
             {
-                commits.push(CommitInfo {
-                    hash: commit.id().to_string(),
-                    date: commit.time().seconds().to_string(),
-                    message: commit.summary().unwrap_or("").to_string(),
-                });
+                let blob_id = entry.id();
+
+                // Only add if blob ID changed (content changed)
+                if last_blob_id != Some(blob_id) {
+                    commits.push(CommitInfo {
+                        hash: commit.id().to_string(),
+                        date: commit.time().seconds().to_string(),
+                        message: commit.summary().unwrap_or("").to_string(),
+                    });
+                    last_blob_id = Some(blob_id);
+                }
             }
         }
 
