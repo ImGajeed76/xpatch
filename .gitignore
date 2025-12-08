@@ -2,6 +2,7 @@
 .idea
 .vscode
 benchmark_results/
+benchmark_cache/
 Cargo.lock
 *.orig
 *.profraw

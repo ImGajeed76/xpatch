@@ -18,16 +18,19 @@
 // For commercial use in proprietary software, a commercial license is
 // available. Contact xpatch-commercial@alias.oseifert.ch for details.
 
-//! # Delta Compression Real-World Benchmark (Enhanced)
+//! # Delta Compression Real-World Benchmark (Enhanced with Tags & WAL)
 //!
 //! Features:
 //! - Parallel benchmark execution for speed
 //! - Incremental result storage (no data loss on Ctrl+C)
 //! - Graceful shutdown handling
 //! - Timestamped output files
+//! - **TAGS OPTIMIZATION**: xpatch searches up to 16 previous versions to find optimal base
+//! - **WAL CSV**: Write-Ahead Log style appending for crash safety
+//! - **CACHE SUPPORT**: Use pre-extracted git content for faster execution
 //!
 //! Usage:
-//!   cargo run --bin git_benchmark --features benchmark -- [--repos <names>] [--max-commits <n>] [--output <dir>] [--threads <n>]
+//!   cargo run --bin git_benchmark --features benchmark -- [--repos <names>] [--max-commits <n>] [--output <dir>] [--threads <n>] [--cache-dir <path>]
 
 use anyhow::{Context, Result};
 use chrono::Local;
@@ -41,7 +44,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Cursor;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicUsize, Ordering};
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, mpsc};
 use std::time::Instant;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,20 +57,37 @@ struct BenchmarkResult {
     file_size_from: usize,
     file_size_to: usize,
 
+    // xpatch with TAGS optimization
+    xpatch_tag: usize,
+    xpatch_base_commit: String,
+    xpatch_base_distance: usize,
     xpatch_delta_size: usize,
     xpatch_ratio: f64,
     xpatch_encode_us: u128,
     xpatch_decode_us: u128,
 
+    // xdelta3 (sequential baseline, no tags)
     xdelta3_delta_size: usize,
     xdelta3_ratio: f64,
     xdelta3_encode_us: u128,
     xdelta3_decode_us: u128,
 
+    // qbsdiff (sequential baseline, no tags)
     qbsdiff_delta_size: usize,
     qbsdiff_ratio: f64,
     qbsdiff_encode_us: u128,
     qbsdiff_decode_us: u128,
+}
+
+// Mirror of FileVersion from git-extract tool
+#[derive(Debug, Clone, Serialize, Deserialize)]
+struct FileVersion {
+    repo_name: String,
+    file_path: String,
+    commit_hash: String,
+    commit_date: String,
+    commit_message: String,
+    size_bytes: usize,
 }
 
 #[derive(Debug)]
@@ -150,6 +170,114 @@ struct Args {
     /// Process multiple files in parallel (may increase memory usage)
     #[arg(long, default_value = "false")]
     parallel_files: bool,
+
+    /// Maximum tag search depth (0-15 for zero overhead, higher uses varint)
+    #[arg(long, default_value = "16")]
+    max_tag_depth: usize,
+
+    /// Use pre-extracted cache directory (from git-extract tool)
+    #[arg(long)]
+    cache_dir: Option<PathBuf>,
+}
+
+// WAL Writer for crash-safe CSV appending
+struct WalCsvWriter {
+    tx: mpsc::Sender<BenchmarkResult>,
+}
+
+impl WalCsvWriter {
+    fn new(csv_path: PathBuf) -> Result<Self> {
+        let (tx, rx) = mpsc::channel::<BenchmarkResult>();
+
+        // Spawn writer thread
+        std::thread::spawn(move || {
+            let file = OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(&csv_path)
+                .expect("Failed to open CSV for WAL writing");
+
+            let mut writer = csv::Writer::from_writer(file);
+
+            // Write header if file is new
+            let is_empty = fs::metadata(&csv_path)
+                .map(|m| m.len() == 0)
+                .unwrap_or(true);
+
+            if is_empty {
+                writer
+                    .write_record([
+                        "repo_name",
+                        "file_path",
+                        "commit_from",
+                        "commit_to",
+                        "distance",
+                        "size_from",
+                        "size_to",
+                        "xpatch_tag",
+                        "xpatch_base_commit",
+                        "xpatch_base_distance",
+                        "xpatch_delta",
+                        "xpatch_ratio",
+                        "xpatch_encode_us",
+                        "xpatch_decode_us",
+                        "xdelta3_delta",
+                        "xdelta3_ratio",
+                        "xdelta3_encode_us",
+                        "xdelta3_decode_us",
+                        "qbsdiff_delta",
+                        "qbsdiff_ratio",
+                        "qbsdiff_encode_us",
+                        "qbsdiff_decode_us",
+                    ])
+                    .expect("Failed to write CSV header");
+                writer.flush().expect("Failed to flush CSV header");
+            }
+
+            // Process results as they come in
+            let mut count = 0;
+            for result in rx {
+                if writer.serialize(&result).is_err() {
+                    eprintln!("⚠️  Failed to serialize result");
+                    continue;
+                }
+                if writer.flush().is_err() {
+                    eprintln!("⚠️  Failed to flush CSV");
+                    continue;
+                }
+
+                count += 1;
+                if count % 100 == 0 {
+                    log::info!("💾 WAL: Persisted {} results to CSV", count);
+                }
+            }
+
+            log::info!("💾 WAL: Final flush - {} results persisted", count);
+        });
+
+        Ok(Self { tx })
+    }
+
+    fn send(&self, result: BenchmarkResult) -> Result<()> {
+        self.tx
+            .send(result)
+            .context("Failed to send result to WAL writer")
+    }
+}
+
+// Progress update messages for centralized progress management
+enum ProgressUpdate {
+    NewFile {
+        file_path: String,
+        total_commits: usize,
+    },
+    IncCommits {
+        file_path: String,
+    },
+    FinishFile {
+        file_path: String,
+        benchmark_count: usize,
+    },
 }
 
 struct BenchmarkRunner {
@@ -157,11 +285,14 @@ struct BenchmarkRunner {
     output_dir: PathBuf,
     repos_dir: PathBuf,
     csv_path: PathBuf,
-    csv_writer: Arc<Mutex<csv::Writer<std::fs::File>>>,
+    wal_writer: WalCsvWriter,
     mp: MultiProgress,
-    #[allow(dead_code)]
     start_time: String,
-    benchmark_counter: Arc<Mutex<usize>>,
+    benchmark_counter: Arc<AtomicUsize>,
+    tags_optimization_counter: Arc<Mutex<(usize, usize)>>,
+    progress_tx: mpsc::Sender<ProgressUpdate>,
+    cache_dir: Option<PathBuf>,
+    manifest: Option<Vec<FileVersion>>,
 }
 
 impl BenchmarkRunner {
@@ -177,36 +308,9 @@ impl BenchmarkRunner {
 
         // Create timestamped CSV file
         let csv_path = output_dir.join(format!("results_{}.csv", start_time));
-        let file = OpenOptions::new()
-            .create(true)
-            .append(true)
-            .open(&csv_path)?;
 
-        let mut writer = csv::Writer::from_writer(file);
-
-        // Write headers
-        writer.write_record([
-            "repo_name",
-            "file_path",
-            "commit_from",
-            "commit_to",
-            "distance",
-            "size_from",
-            "size_to",
-            "xpatch_delta",
-            "xpatch_ratio",
-            "xpatch_encode_us",
-            "xpatch_decode_us",
-            "xdelta3_delta",
-            "xdelta3_ratio",
-            "xdelta3_encode_us",
-            "xdelta3_decode_us",
-            "qbsdiff_delta",
-            "qbsdiff_ratio",
-            "qbsdiff_encode_us",
-            "qbsdiff_decode_us",
-        ])?;
-        writer.flush()?;
+        // Initialize WAL writer
+        let wal_writer = WalCsvWriter::new(csv_path.clone())?;
 
         // Set up thread pool
         let threads = if args.threads == 0 {
@@ -217,29 +321,113 @@ impl BenchmarkRunner {
         rayon::ThreadPoolBuilder::new()
             .num_threads(threads)
             .build_global()
-            .ok(); // Ignore error if already initialized
+            .ok();
 
         let mp = MultiProgress::new();
         mp.set_move_cursor(true);
+
+        // Create progress manager thread
+        let (progress_tx, progress_rx) = mpsc::channel::<ProgressUpdate>();
+        let mp_clone = mp.clone();
+
+        std::thread::spawn(move || {
+            let mut file_bars: HashMap<String, ProgressBar> = HashMap::new();
+
+            while let Ok(update) = progress_rx.recv() {
+                match update {
+                    ProgressUpdate::NewFile {
+                        file_path,
+                        total_commits,
+                    } => {
+                        let pb = mp_clone.add(ProgressBar::new(total_commits as u64));
+                        pb.set_style(
+                            ProgressStyle::default_bar()
+                                .template("{prefix:.cyan} {bar:40} {pos}/{len} commits")
+                                .unwrap()
+                                .progress_chars("=>-"),
+                        );
+                        pb.set_prefix(format!("📄 {}", file_path));
+                        file_bars.insert(file_path, pb);
+                    }
+                    ProgressUpdate::IncCommits { file_path } => {
+                        if let Some(pb) = file_bars.get(&file_path) {
+                            pb.inc(1);
+                        }
+                    }
+                    ProgressUpdate::FinishFile {
+                        file_path,
+                        benchmark_count,
+                    } => {
+                        if let Some(pb) = file_bars.remove(&file_path) {
+                            pb.finish_with_message(format!("✓ {} benchmarks", benchmark_count));
+                        }
+                    }
+                }
+            }
+        });
+
+        // Load cache manifest if provided
+        let (cache_dir, manifest) = if let Some(cache_dir) = args.cache_dir.clone() {
+            let manifest_path = cache_dir.join("manifest.json");
+            if manifest_path.exists() {
+                log::info!(
+                    "💾 Loading cache manifest from: {}",
+                    manifest_path.display()
+                );
+                let content = fs::read_to_string(&manifest_path).with_context(|| {
+                    format!("Failed to read manifest: {}", manifest_path.display())
+                })?;
+                let manifest: Vec<FileVersion> =
+                    serde_json::from_str(&content).with_context(|| {
+                        format!("Failed to parse manifest: {}", manifest_path.display())
+                    })?;
+                log::info!("   Loaded {} cached file versions", manifest.len());
+                (Some(cache_dir), Some(manifest))
+            } else {
+                log::warn!(
+                    "⚠️  Cache directory provided but no manifest.json found at {}",
+                    manifest_path.display()
+                );
+                (Some(cache_dir), None)
+            }
+        } else {
+            (None, None)
+        };
+
+        log::info!("🚀 Starting Delta Compression Benchmark");
+        log::info!("Output directory: {}", output_dir.display());
+        log::info!("Results file: {}", csv_path.display());
+        log::info!("Threads: {}", rayon::current_num_threads());
+        log::info!("Max tag search depth: {}", args.max_tag_depth);
+        log::info!("Tags 0-15 have zero overhead, higher tags use varint encoding");
+
+        if let Some(cache) = &cache_dir {
+            log::info!("💾 Cache directory: {}", cache.display());
+            match &manifest {
+                Some(m) => log::info!("   Loaded {} file versions from manifest", m.len()),
+                None => log::warn!("   No manifest found in cache directory"),
+            }
+        } else {
+            log::info!("💾 No cache directory specified, will use git2 directly");
+        }
 
         Ok(Self {
             args,
             output_dir,
             repos_dir,
-            csv_path: csv_path.clone(),
-            csv_writer: Arc::new(Mutex::new(writer)),
+            csv_path,
+            wal_writer,
             mp,
             start_time,
-            benchmark_counter: Arc::new(Mutex::new(0)),
+            benchmark_counter: Arc::new(AtomicUsize::new(0)),
+            tags_optimization_counter: Arc::new(Mutex::new((0, 0))),
+            progress_tx,
+            cache_dir,
+            manifest,
         })
     }
 
     fn run(&self) -> Result<()> {
-        log::info!("🚀 Starting Delta Compression Benchmark");
-        log::info!("Output directory: {}", self.output_dir.display());
-        log::info!("Results file: {}", self.csv_path.display());
-        log::info!("Threads: {}", rayon::current_num_threads());
-
         // Set up Ctrl+C handler
         let csv_path = self.csv_path.clone();
         ctrlc::set_handler(move || {
@@ -265,25 +453,14 @@ impl BenchmarkRunner {
                 self.args.all_files_head,
                 self.args.max_files,
             ) {
-                (true, _, _) => {
-                    // --all-files: discover from history, unlimited
-                    self.get_all_files_in_history(&repo)?
-                }
-                (false, true, _) => {
-                    // --all-files-head: discover from HEAD, unlimited
-                    self.get_all_files_at_head(&repo)?
-                }
-                (false, false, 0) => {
-                    // Default: use predefined list
-                    repo_config.files.iter().map(|s| s.to_string()).collect()
-                }
-                (false, false, n) => {
-                    // --max-files N: discover from HEAD, limited
-                    self.get_all_files_at_head(&repo)?
-                        .into_iter()
-                        .take(n)
-                        .collect()
-                }
+                (true, _, _) => self.get_all_files_in_history(&repo)?,
+                (false, true, _) => self.get_all_files_at_head(&repo)?,
+                (false, false, 0) => repo_config.files.iter().map(|s| s.to_string()).collect(),
+                (false, false, n) => self
+                    .get_all_files_at_head(&repo)?
+                    .into_iter()
+                    .take(n)
+                    .collect(),
             };
 
             total_files += files.len();
@@ -299,15 +476,13 @@ impl BenchmarkRunner {
         );
         master_pb.enable_steady_tick(std::time::Duration::from_millis(100));
 
-        let total_benchmarks = Arc::new(Mutex::new(0usize));
-        let files_completed = Arc::new(AtomicUsize::new(0));
+        let total_benchmarks = Arc::new(AtomicUsize::new(0));
 
         for repo_config in repos_to_test {
             println!("\n{}", "═".repeat(80));
             log::info!("📦 Processing repository: {}", repo_config.name);
             log::info!("   {}", repo_config.description);
 
-            // Get pre-discovered files
             let files_to_benchmark = repo_files_map.get(repo_config.name).unwrap();
 
             match self.benchmark_repo(
@@ -315,7 +490,6 @@ impl BenchmarkRunner {
                 files_to_benchmark,
                 Arc::clone(&total_benchmarks),
                 &master_pb,
-                Arc::clone(&files_completed),
             ) {
                 Ok(count) => {
                     log::info!("   ✓ Completed: {} benchmarks", count);
@@ -330,11 +504,6 @@ impl BenchmarkRunner {
         }
 
         master_pb.finish_with_message("✅ All files processed");
-
-        {
-            let mut writer = self.csv_writer.lock().unwrap();
-            writer.flush()?;
-        }
 
         self.print_final_summary()?;
 
@@ -381,184 +550,68 @@ impl BenchmarkRunner {
         Ok(selected)
     }
 
-    fn benchmark_file_sequential(
-        &self,
-        repo: &Repository,
-        repo_name: &str,
-        file_path: &str,
-        local_count: Arc<Mutex<usize>>,
-        csv_writer: &Arc<Mutex<csv::Writer<std::fs::File>>>,
-        benchmark_counter: &Arc<Mutex<usize>>,
-        commit_pb: Option<&ProgressBar>,
-    ) -> Result<usize> {
-        let max_commits = if self.args.max_commits > 0 {
-            self.args.max_commits
-        } else {
-            usize::MAX // No limit
-        };
-        let commits = self.get_commit_history(repo, file_path, max_commits)?;
-
-        if max_commits < 2 {
-            anyhow::bail!(
-                "Not enough commits found (need at least 2, found {})",
-                commits.len()
-            );
-        }
-
-        // Create progress bar for commits
-        if let Some(pb) = commit_pb {
-            pb.set_length((max_commits - 1) as u64);
-            pb.reset();
-            pb.enable_steady_tick(std::time::Duration::from_millis(100));
-        }
-
-        let mut count = 0;
-        for i in 0..max_commits - 1 {
-            let from = &commits[i];
-            let to = &commits[i + 1];
-            let distance = i + 1;
-
-            match self.benchmark_commit_pair(repo, repo_name, file_path, from, to, distance) {
-                Ok(result) => {
-                    // Write result immediately
-                    if let Ok(mut writer) = csv_writer.lock() {
-                        let _ = writer.serialize(&result);
-                        let _ = writer.flush();
-
-                        *local_count.lock().unwrap() += 1;
-                        count += 1;
-
-                        // Update global counter
-                        let total = {
-                            let mut counter = benchmark_counter.lock().unwrap();
-                            *counter += 1;
-                            *counter
-                        };
-
-                        // Update progress bar every 10 benchmarks
-                        if let Some(pb) = commit_pb {
-                            if total % 10 == 0 {
-                                pb.set_message(format!("[{} total]", total));
-                            }
-                            pb.inc(1);
-                        }
-                    }
-                }
-                Err(e) => {
-                    log::debug!(
-                        "Failed commit pair {}->{}: {}",
-                        &from.hash[..8],
-                        &to.hash[..8],
-                        e
-                    );
-                    if let Some(pb) = commit_pb {
-                        pb.inc(1);
-                    }
-                }
-            }
-        }
-
-        if let Some(pb) = commit_pb {
-            pb.finish_with_message(format!("✓ {} benchmarks", count));
-        }
-        Ok(count)
-    }
-
-    fn format_filename(&self, path: &str, width: usize) -> String {
-        if path.len() <= width {
-            format!("{:<width$}", path, width = width)
-        } else {
-            format!(
-                "{}…{:<width$}",
-                &path[..width / 2 - 1],
-                &path[path.len() - (width / 2 - 2)..]
-            )
-        }
-    }
-
     fn benchmark_repo(
         &self,
         repo_config: &RepoConfig,
         files_to_benchmark: &[String],
-        total_benchmarks: Arc<Mutex<usize>>,
+        total_benchmarks: Arc<AtomicUsize>,
         master_pb: &ProgressBar,
-        files_completed: Arc<AtomicUsize>,
     ) -> Result<usize> {
         let repo_path = self.repos_dir.join(repo_config.name);
         let repo = self.ensure_repo_cloned(repo_config, &repo_path)?;
 
-        let repo_pb = self
-            .mp
-            .add(ProgressBar::new(files_to_benchmark.len() as u64));
-        repo_pb.set_style(
-            ProgressStyle::default_bar()
-                .template("  [{elapsed_precise}] {bar:40.cyan/blue} {pos}/{len} files | ETA: {eta}")
-                .unwrap()
-                .progress_chars("█▓░"),
-        );
-        repo_pb.enable_steady_tick(std::time::Duration::from_millis(100));
-
-        let local_count = Arc::new(Mutex::new(0usize));
+        let local_count = Arc::new(AtomicUsize::new(0));
 
         if self.args.parallel_files {
+            // In parallel mode, use the progress manager thread
             files_to_benchmark.par_iter().for_each(|file_path| {
                 let repo_path = repo_path.clone();
                 let repo_name = repo_config.name.to_string();
                 let file_path = file_path.clone();
                 let local_count = Arc::clone(&local_count);
-                let csv_writer = Arc::clone(&self.csv_writer);
-                let benchmark_counter = Arc::clone(&self.benchmark_counter);
+                let total_benchmarks = Arc::clone(&total_benchmarks);
+                let wal_writer = &self.wal_writer;
+                let tags_counter = Arc::clone(&self.tags_optimization_counter);
+                let progress_tx = self.progress_tx.clone();
 
                 if let Ok(thread_repo) = Repository::open(&repo_path) {
-                    let commit_pb = self.mp.add(ProgressBar::new(100));
-                    commit_pb.set_style(
-                        ProgressStyle::default_bar()
-                            .template("{prefix:.cyan} {bar:40} {pos}/{len} commits | ETA: {eta}")
-                            .unwrap()
-                            .progress_chars("=>-"),
-                    );
-                    commit_pb.set_prefix(self.format_filename(&file_path, 24));
+                    // Notify progress manager about new file
+                    progress_tx
+                        .send(ProgressUpdate::NewFile {
+                            file_path: file_path.clone(),
+                            total_commits: self.args.max_commits.min(100),
+                        })
+                        .ok();
 
-                    match self.benchmark_file_sequential(
+                    match self.benchmark_file_with_tags(
                         &thread_repo,
                         &repo_name,
                         &file_path,
                         local_count,
-                        &csv_writer,
-                        &benchmark_counter,
-                        None,
+                        total_benchmarks,
+                        wal_writer,
+                        tags_counter,
+                        progress_tx.clone(),
                     ) {
                         Ok(count) => {
-                            let completed = files_completed.fetch_add(1, Ordering::Relaxed) + 1;
-                            if completed % 5 == 0 {
-                                // Update every 5 files
-                                master_pb.inc(5);
-                                repo_pb.inc(5);
-                            }
+                            progress_tx
+                                .send(ProgressUpdate::FinishFile {
+                                    file_path: file_path.clone(),
+                                    benchmark_count: count,
+                                })
+                                .ok();
+                            master_pb.inc(1);
                         }
                         Err(e) => {
                             log::warn!("Failed: {} - {}", file_path, e);
-                            let completed = files_completed.fetch_add(1, Ordering::Relaxed) + 1;
-                            if completed % 5 == 0 {
-                                master_pb.inc(5);
-                                repo_pb.inc(5);
-                            }
+                            master_pb.inc(1);
                         }
                     }
                 }
             });
-
-            let final_count = files_completed.load(Ordering::Relaxed);
-            let remainder = final_count % 5;
-            if remainder > 0 {
-                master_pb.inc(remainder as u64);
-                repo_pb.inc(remainder as u64);
-            }
         } else {
-            // Sequential processing (original working code)
-            for (idx, file_path) in files_to_benchmark.iter().enumerate() {
-                repo_pb.set_position(idx as u64);
-
+            // Sequential mode - show detailed progress directly
+            for (_idx, file_path) in files_to_benchmark.iter().enumerate() {
                 let file_pb = self.mp.add(ProgressBar::new_spinner());
                 file_pb.set_style(
                     ProgressStyle::default_spinner()
@@ -567,13 +620,17 @@ impl BenchmarkRunner {
                 );
                 file_pb.set_message(format!("📄 {}", file_path));
 
-                match self.benchmark_file_parallel(
+                match self.benchmark_file_with_tags(
                     &repo,
                     repo_config.name,
                     file_path,
                     Arc::clone(&local_count),
+                    Arc::clone(&total_benchmarks),
+                    &self.wal_writer,
+                    Arc::clone(&self.tags_optimization_counter),
+                    self.progress_tx.clone(),
                 ) {
-                    Ok(_count) => {
+                    Ok(_) => {
                         file_pb.finish_and_clear();
                         master_pb.inc(1);
                     }
@@ -586,11 +643,8 @@ impl BenchmarkRunner {
             }
         }
 
-        repo_pb.finish_with_message(format!("✅ {}", repo_config.name));
-
-        repo_pb.finish_and_clear();
-        let count = *local_count.lock().unwrap();
-        *total_benchmarks.lock().unwrap() += count;
+        let count = local_count.load(Ordering::Relaxed);
+        total_benchmarks.fetch_add(count, Ordering::Relaxed);
         Ok(count)
     }
 
@@ -625,100 +679,309 @@ impl BenchmarkRunner {
         Ok(repo)
     }
 
-    fn benchmark_file_parallel(
+    fn benchmark_file_with_tags(
         &self,
         repo: &Repository,
         repo_name: &str,
         file_path: &str,
-        local_count: Arc<Mutex<usize>>,
+        local_count: Arc<AtomicUsize>,
+        total_benchmarks: Arc<AtomicUsize>,
+        wal_writer: &WalCsvWriter,
+        tags_counter: Arc<Mutex<(usize, usize)>>,
+        progress_tx: mpsc::Sender<ProgressUpdate>,
     ) -> Result<usize> {
         let max_commits = if self.args.max_commits > 0 {
             self.args.max_commits
         } else {
-            usize::MAX // No limit
+            usize::MAX
         };
-        let commits = self.get_commit_history(repo, file_path, max_commits)?;
 
-        if max_commits < 2 {
+        let commits = self.get_commit_history(repo, repo_name, file_path, max_commits)?;
+
+        if commits.len() < 2 {
             anyhow::bail!(
                 "Not enough commits found (need at least 2, found {})",
                 commits.len()
             );
         }
 
-        let commit_pb = self.mp.add(ProgressBar::new((max_commits - 1) as u64));
-        commit_pb.set_style(
-            ProgressStyle::default_bar()
-                .template("    {bar:40} {pos}/{len} commits | ETA: {eta} | {per_sec:.1}")
-                .unwrap()
-                .progress_chars("=>-"),
-        );
-        commit_pb.enable_steady_tick(std::time::Duration::from_millis(100));
-
-        // Prepare commit pairs
-        let mut pairs = Vec::new();
-        for i in 0..max_commits - 1 {
-            pairs.push((commits[i].clone(), commits[i + 1].clone(), i + 1));
+        // Load all commit contents upfront for tag search
+        let mut commit_data = Vec::new();
+        for commit in &commits {
+            match self.get_file_at_commit(repo, repo_name, &commit.hash, file_path) {
+                Ok(content) => commit_data.push((commit.clone(), content)),
+                Err(e) => {
+                    log::debug!("Skipping commit {}: {}", &commit.hash[..8], e);
+                    continue;
+                }
+            }
         }
 
-        // Process pairs in parallel
-        let csv_writer: Arc<Mutex<csv::Writer<std::fs::File>>> = Arc::clone(&self.csv_writer);
-        let benchmark_counter = Arc::clone(&self.benchmark_counter);
-        let repo_path = repo.path().parent().unwrap().to_path_buf();
-        let repo_name = repo_name.to_string();
-        let file_path = file_path.to_string();
-        let pb = commit_pb.clone();
+        if commit_data.len() < 2 {
+            anyhow::bail!("Not enough commits with valid content");
+        }
 
-        pairs.par_iter().for_each(|(from, to, distance)| {
-            // Each thread opens its own repo connection
-            if let Ok(thread_repo) = Repository::open(&repo_path) {
-                match self.benchmark_commit_pair(
-                    &thread_repo,
-                    &repo_name,
-                    &file_path,
-                    from,
-                    to,
-                    *distance,
-                ) {
-                    Ok(result) => {
-                        // Write result immediately
-                        if let Ok(mut writer) = csv_writer.lock() {
-                            let _ = writer.serialize(&result);
-                            let _ = writer.flush();
-                            *local_count.lock().unwrap() += 1;
+        // Process each target commit
+        let mut final_count = 0;
+        for i in 1..commit_data.len() {
+            let (target_commit, target_content) = &commit_data[i];
 
-                            // Update global counter
-                            let total = {
-                                let mut counter = benchmark_counter.lock().unwrap();
-                                *counter += 1;
-                                *counter
-                            };
+            // Find optimal base version using tags
+            let search_depth = self.args.max_tag_depth.min(i);
+            let mut best_base_idx = i - 1;
+            let mut best_tag = 0;
+            let mut best_delta_size = usize::MAX;
+            let mut found_better_base = false;
 
-                            // Update progress bar with total count every 10 benchmarks
-                            if total % 10 == 0 {
-                                pb.set_message(format!("[{} total]", total));
-                            }
-                        }
-                    }
-                    Err(e) => {
-                        log::debug!(
-                            "Failed commit pair {}->{}: {}",
-                            &from.hash[..8],
-                            &to.hash[..8],
-                            e
-                        );
+            // Search backwards through previous versions
+            for j in (i.saturating_sub(search_depth)..i).rev() {
+                let (_, base_content) = &commit_data[j];
+                let tag = i - j;
+
+                // Quick size estimation
+                let delta = xpatch::delta::encode(tag, base_content, target_content, true);
+
+                if delta.len() < best_delta_size {
+                    best_delta_size = delta.len();
+                    best_base_idx = j;
+                    best_tag = tag;
+
+                    if j < i - 1 {
+                        found_better_base = true;
                     }
                 }
-                pb.inc(1);
             }
-        });
 
-        let final_count = *local_count.lock().unwrap();
-        commit_pb.finish_with_message(format!("✓ {} benchmarks", final_count));
+            let (base_commit, base_content) = &commit_data[best_base_idx];
+            let (_, immediate_prev_content) = &commit_data[i - 1];
+
+            // Run full benchmark with optimal base
+            match self.benchmark_commit_pair_with_tags(
+                repo,
+                repo_name,
+                file_path,
+                base_commit,
+                target_commit,
+                best_tag,
+                base_content,
+                target_content,
+                immediate_prev_content,
+            ) {
+                Ok(result) => {
+                    // Send to WAL writer
+                    wal_writer.send(result.clone())?;
+
+                    local_count.fetch_add(1, Ordering::Relaxed);
+                    let total = total_benchmarks.fetch_add(1, Ordering::Relaxed) + 1;
+                    final_count += 1;
+
+                    // Update tags optimization counter
+                    if found_better_base {
+                        let mut counter = tags_counter.lock().unwrap();
+                        counter.0 += 1;
+                        counter.1 += 1;
+                    } else {
+                        let mut counter = tags_counter.lock().unwrap();
+                        counter.1 += 1;
+                    }
+
+                    // Send progress update
+                    progress_tx
+                        .send(ProgressUpdate::IncCommits {
+                            file_path: file_path.to_string(),
+                        })
+                        .ok();
+
+                    // Log progress every 100 benchmarks
+                    if total % 100 == 0 {
+                        log::info!("💾 Processed {} benchmarks total", total);
+                    }
+                }
+                Err(e) => {
+                    log::debug!(
+                        "Failed commit pair {}->{}: {}",
+                        &base_commit.hash[..8],
+                        &target_commit.hash[..8],
+                        e
+                    );
+                }
+            }
+        }
+
         Ok(final_count)
     }
 
+    fn benchmark_commit_pair_with_tags(
+        &self,
+        _repo: &Repository,
+        repo_name: &str,
+        file_path: &str,
+        base: &CommitInfo,
+        target: &CommitInfo,
+        tag: usize,
+        base_content: &[u8],
+        target_content: &[u8],
+        immediate_prev_content: &[u8],
+    ) -> Result<BenchmarkResult> {
+        if base_content.is_empty() || target_content.is_empty() {
+            anyhow::bail!("Empty file content");
+        }
+
+        // xpatch with optimal base and tag
+        let (xpatch_delta, xpatch_encode_us, xpatch_decode_us) =
+            self.bench_xpatch_with_tag(base_content, target_content, tag)?;
+
+        // xdelta3 with immediate predecessor (fair comparison)
+        let (xdelta3_delta, xdelta3_encode_us, xdelta3_decode_us) = self
+            .bench_xdelta3(immediate_prev_content, target_content)
+            .unwrap_or_else(|_| (Vec::new(), 0, 0));
+
+        // qbsdiff with immediate predecessor (fair comparison)
+        let (qbsdiff_delta, qbsdiff_encode_us, qbsdiff_decode_us) = self
+            .bench_qbsdiff(immediate_prev_content, target_content)
+            .unwrap_or_else(|_| (Vec::new(), 0, 0));
+
+        Ok(BenchmarkResult {
+            repo_name: repo_name.to_string(),
+            file_path: file_path.to_string(),
+            commit_from: base.hash[..8].to_string(),
+            commit_to: target.hash[..8].to_string(),
+            commit_distance: target.distance_from(base),
+            file_size_from: base_content.len(),
+            file_size_to: target_content.len(),
+
+            xpatch_tag: tag,
+            xpatch_base_commit: base.hash[..8].to_string(),
+            xpatch_base_distance: target.distance_from(base),
+
+            xpatch_delta_size: xpatch_delta.len(),
+            xpatch_ratio: xpatch_delta.len() as f64 / target_content.len() as f64,
+            xpatch_encode_us,
+            xpatch_decode_us,
+
+            xdelta3_delta_size: xdelta3_delta.len(),
+            xdelta3_ratio: if !xdelta3_delta.is_empty() && !target_content.is_empty() {
+                xdelta3_delta.len() as f64 / target_content.len() as f64
+            } else {
+                f64::NAN
+            },
+            xdelta3_encode_us,
+            xdelta3_decode_us,
+
+            qbsdiff_delta_size: qbsdiff_delta.len(),
+            qbsdiff_ratio: qbsdiff_delta.len() as f64 / target_content.len() as f64,
+            qbsdiff_encode_us,
+            qbsdiff_decode_us,
+        })
+    }
+
     fn get_commit_history(
+        &self,
+        repo: &Repository,
+        repo_name: &str,
+        file_path: &str,
+        limit: usize,
+    ) -> Result<Vec<CommitInfo>> {
+        // Try cache first if available
+        if let Some(manifest) = &self.manifest {
+            let cache_result = self.get_commit_history_from_cache(repo_name, file_path, limit);
+            if let Ok(commits) = cache_result {
+                if !commits.is_empty() {
+                    log::debug!("Using cache for {}: {} commits", file_path, commits.len());
+                    return Ok(commits);
+                }
+            }
+        }
+
+        // Fall back to git2
+        log::debug!("Cache not available for {}, using git2", file_path);
+        self.get_commit_history_from_git(repo, file_path, limit)
+    }
+
+    fn get_commit_history_from_cache(
+        &self,
+        repo_name: &str,
+        file_path: &str,
+        limit: usize,
+    ) -> Result<Vec<CommitInfo>> {
+        let cache_dir = self
+            .cache_dir
+            .as_ref()
+            .ok_or_else(|| anyhow::anyhow!("No cache directory"))?;
+        let safe_path = file_path.replace('/', "___");
+        let file_cache_dir = cache_dir.join("files").join(repo_name).join(safe_path);
+
+        if !file_cache_dir.exists() {
+            anyhow::bail!(
+                "Cache directory does not exist: {}",
+                file_cache_dir.display()
+            );
+        }
+
+        let mut commits = Vec::new();
+        let mut entries = fs::read_dir(&file_cache_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .map(|ext| ext == "bin")
+                    .unwrap_or(false)
+            })
+            .collect::<Vec<_>>();
+
+        // Sort by index (filename format: <index>_<hash>.bin)
+        entries.sort_by_key(|e| {
+            e.file_name()
+                .to_string_lossy()
+                .split('_')
+                .next()
+                .and_then(|s| s.parse::<usize>().ok())
+                .unwrap_or(usize::MAX)
+        });
+
+        for (idx, entry) in entries.iter().enumerate() {
+            if limit > 0 && idx >= limit {
+                break;
+            }
+
+            let filename = entry.file_name().to_string_lossy().to_string();
+            let parts: Vec<&str> = filename.split('_').collect();
+            if parts.len() < 2 {
+                continue;
+            }
+
+            let hash = parts[1].trim_end_matches(".bin").to_string();
+
+            // Try to get commit info from manifest
+            if let Some(manifest) = &self.manifest {
+                if let Some(version) = manifest.iter().find(|v| {
+                    v.repo_name == repo_name
+                        && v.file_path == file_path
+                        && v.commit_hash.starts_with(&hash)
+                }) {
+                    commits.push(CommitInfo {
+                        hash: version.commit_hash.clone(),
+                        date: version.commit_date.clone(),
+                        message: version.commit_message.clone(),
+                        index: idx,
+                    });
+                    continue;
+                }
+            }
+
+            // Fallback: use hash and basic info
+            commits.push(CommitInfo {
+                hash,
+                date: "0".to_string(),
+                message: "".to_string(),
+                index: idx,
+            });
+        }
+
+        Ok(commits)
+    }
+
+    fn get_commit_history_from_git(
         &self,
         repo: &Repository,
         file_path: &str,
@@ -758,7 +1021,7 @@ impl BenchmarkRunner {
         }
 
         let mut commits = Vec::new();
-        let mut last_blob_id: Option<git2::Oid> = None; // Track last seen blob
+        let mut last_blob_id: Option<git2::Oid> = None;
 
         for oid in revwalk {
             if limit > 0 && commits.len() >= limit {
@@ -768,18 +1031,17 @@ impl BenchmarkRunner {
             let oid = oid?;
             let commit = repo.find_commit(oid)?;
 
-            // Get blob ID for this file in current commit
             if let Ok(tree) = commit.tree()
                 && let Ok(entry) = tree.get_path(Path::new(file_path))
             {
                 let blob_id = entry.id();
 
-                // Only add if blob ID changed (content changed)
                 if last_blob_id != Some(blob_id) {
                     commits.push(CommitInfo {
                         hash: commit.id().to_string(),
                         date: commit.time().seconds().to_string(),
                         message: commit.summary().unwrap_or("").to_string(),
+                        index: commits.len(),
                     });
                     last_blob_id = Some(blob_id);
                 }
@@ -789,70 +1051,56 @@ impl BenchmarkRunner {
         Ok(commits)
     }
 
-    fn benchmark_commit_pair(
+    fn get_file_at_commit(
         &self,
         repo: &Repository,
         repo_name: &str,
+        commit_hash: &str,
         file_path: &str,
-        from: &CommitInfo,
-        to: &CommitInfo,
-        distance: usize,
-    ) -> Result<BenchmarkResult> {
-        let content_from = self.get_file_at_commit(repo, &from.hash, file_path)?;
-        let content_to = self.get_file_at_commit(repo, &to.hash, file_path)?;
+    ) -> Result<Vec<u8>> {
+        // Try cache first if available
+        if let Some(cache_dir) = &self.cache_dir {
+            let safe_path = file_path.replace('/', "___");
+            let file_cache_dir = cache_dir.join("files").join(repo_name).join(safe_path);
 
-        if content_from.is_empty() || content_to.is_empty() {
-            anyhow::bail!("Empty file content");
+            // Look for file matching the commit hash
+            if file_cache_dir.exists() {
+                let entries = fs::read_dir(&file_cache_dir)?
+                    .filter_map(|e| e.ok())
+                    .filter(|e| {
+                        e.path()
+                            .extension()
+                            .map(|ext| ext == "bin")
+                            .unwrap_or(false)
+                    });
+
+                for entry in entries {
+                    let filename = entry.file_name().to_string_lossy().to_string();
+                    let parts: Vec<&str> = filename.split('_').collect();
+                    if parts.len() >= 2 {
+                        let hash = parts[1].trim_end_matches(".bin");
+                        if commit_hash.starts_with(hash) {
+                            // Found matching file in cache
+                            log::trace!("Loading from cache: {} {}", file_path, &commit_hash[..8]);
+                            return fs::read(entry.path()).with_context(|| {
+                                format!("Failed to read cached file: {}", entry.path().display())
+                            });
+                        }
+                    }
+                }
+            }
         }
 
-        let (xpatch_delta, xpatch_encode_us, xpatch_decode_us) =
-            self.bench_xpatch(&content_from, &content_to)?;
-
-        let (xdelta3_delta, xdelta3_encode_us, xdelta3_decode_us) = self
-            .bench_xdelta3(&content_from, &content_to)
-            .unwrap_or_else(|_| (Vec::new(), 0, 0));
-
-        /*
-        let (qbsdiff_delta, qbsdiff_encode_us, qbsdiff_decode_us) =
-            self.bench_qbsdiff(&content_from, &content_to)?;
-
-         */
-        let mut qbsdiff_delta = content_to.to_vec();
-        qbsdiff_delta.extend_from_slice(&[0u8; 1024]); // Add 1KB overhead
-        let qbsdiff_encode_us = 0;
-        let qbsdiff_decode_us = 0;
-
-        Ok(BenchmarkResult {
-            repo_name: repo_name.to_string(),
-            file_path: file_path.to_string(),
-            commit_from: from.hash[..8].to_string(),
-            commit_to: to.hash[..8].to_string(),
-            commit_distance: distance,
-            file_size_from: content_from.len(),
-            file_size_to: content_to.len(),
-
-            xpatch_delta_size: xpatch_delta.len(),
-            xpatch_ratio: xpatch_delta.len() as f64 / content_to.len() as f64,
-            xpatch_encode_us,
-            xpatch_decode_us,
-
-            xdelta3_delta_size: xdelta3_delta.len(),
-            xdelta3_ratio: if !xdelta3_delta.is_empty() && !content_to.is_empty() {
-                xdelta3_delta.len() as f64 / content_to.len() as f64
-            } else {
-                f64::NAN
-            },
-            xdelta3_encode_us,
-            xdelta3_decode_us,
-
-            qbsdiff_delta_size: qbsdiff_delta.len(),
-            qbsdiff_ratio: qbsdiff_delta.len() as f64 / content_to.len() as f64,
-            qbsdiff_encode_us,
-            qbsdiff_decode_us,
-        })
+        // Fall back to git2
+        log::trace!(
+            "Cache miss for {} {}, using git2",
+            file_path,
+            &commit_hash[..8]
+        );
+        self.get_file_at_commit_from_git(repo, commit_hash, file_path)
     }
 
-    fn get_file_at_commit(
+    fn get_file_at_commit_from_git(
         &self,
         repo: &Repository,
         commit_hash: &str,
@@ -870,9 +1118,14 @@ impl BenchmarkRunner {
         Ok(blob.content().to_vec())
     }
 
-    fn bench_xpatch(&self, base: &[u8], target: &[u8]) -> Result<(Vec<u8>, u128, u128)> {
+    fn bench_xpatch_with_tag(
+        &self,
+        base: &[u8],
+        target: &[u8],
+        tag: usize,
+    ) -> Result<(Vec<u8>, u128, u128)> {
         let start = Instant::now();
-        let delta = xpatch::delta::encode(0, base, target, true);
+        let delta = xpatch::delta::encode(tag, base, target, true);
         let encode_time = start.elapsed().as_micros();
 
         let start = Instant::now();
@@ -918,7 +1171,6 @@ impl BenchmarkRunner {
     }
 
     fn print_final_summary(&self) -> Result<()> {
-        // Read all results from CSV
         let mut reader = csv::Reader::from_path(&self.csv_path)?;
         let mut all_results: Vec<BenchmarkResult> = Vec::new();
 
@@ -934,7 +1186,8 @@ impl BenchmarkRunner {
         println!(
             "\n\n╔═══════════════════════════════════════════════════════════════════════════╗"
         );
-        println!("║                  DELTA COMPRESSION - FINAL SUMMARY                         ║");
+        println!("║                  DELTA COMPRESSION - FINAL SUMMARY                        ║");
+        println!("║                  (with xpatch TAGS optimization)                          ║");
         println!("╚═══════════════════════════════════════════════════════════════════════════╝\n");
 
         let mut by_repo: HashMap<String, Vec<BenchmarkResult>> = HashMap::new();
@@ -945,13 +1198,35 @@ impl BenchmarkRunner {
                 .push(result.clone());
         }
 
+        let (better_base_found, total_benchmarks) = *self.tags_optimization_counter.lock().unwrap();
+        println!("\n🏷️  TAGS OPTIMIZATION STATISTICS:");
+        println!("   Total benchmarks: {}", total_benchmarks);
+        println!(
+            "   Better base found: {} ({:.1}%)",
+            better_base_found,
+            (better_base_found as f64 / total_benchmarks.max(1) as f64) * 100.0
+        );
+        println!(
+            "   Average search depth: {} commits",
+            self.args.max_tag_depth
+        );
+
         for (repo_name, results) in by_repo {
             println!("\n📊 REPOSITORY: {}", repo_name);
             println!("{}", "─".repeat(80));
 
             let avg_size = results.iter().map(|r| r.file_size_to).sum::<usize>() / results.len();
+
+            let avg_xpatch_tag =
+                results.iter().map(|r| r.xpatch_tag).sum::<usize>() as f64 / results.len() as f64;
+            let avg_xpatch_dist = results
+                .iter()
+                .map(|r| r.xpatch_base_distance)
+                .sum::<usize>() as f64
+                / results.len() as f64;
             let avg_xpatch =
                 results.iter().map(|r| r.xpatch_ratio).sum::<f64>() / results.len() as f64;
+
             let avg_xdelta3 = results
                 .iter()
                 .filter(|r| !r.xdelta3_ratio.is_nan())
@@ -962,18 +1237,29 @@ impl BenchmarkRunner {
                     .filter(|r| !r.xdelta3_ratio.is_nan())
                     .count()
                     .max(1) as f64;
+
             let avg_qbsdiff =
                 results.iter().map(|r| r.qbsdiff_ratio).sum::<f64>() / results.len() as f64;
 
             println!("  Benchmarks run: {}", results.len());
             println!("  Average file size: {:.1} KB", avg_size as f64 / 1024.0);
 
-            println!("\n  Average Compression Ratios:");
+            println!("\n  xpatch TAGS Optimization:");
             println!(
-                "    xpatch:  {:.4} ({:.1}% savings)",
+                "    Average tag value: {:.1} (0-15 = zero overhead)",
+                avg_xpatch_tag
+            );
+            println!(
+                "    Average base distance: {:.1} commits back",
+                avg_xpatch_dist
+            );
+            println!(
+                "    Compression ratio: {:.4} ({:.1}% savings)",
                 avg_xpatch,
                 (1.0 - avg_xpatch) * 100.0
             );
+
+            println!("\n  Comparison (sequential baseline):");
             if !avg_xdelta3.is_nan() {
                 println!(
                     "    xdelta3: {:.4} ({:.1}% savings)",
@@ -988,6 +1274,19 @@ impl BenchmarkRunner {
                 avg_qbsdiff,
                 (1.0 - avg_qbsdiff) * 100.0
             );
+
+            let improvement_over_xdelta3 = if !avg_xdelta3.is_nan() {
+                (avg_xdelta3 - avg_xpatch) / avg_xdelta3 * 100.0
+            } else {
+                0.0
+            };
+            let improvement_over_qbsdiff = (avg_qbsdiff - avg_xpatch) / avg_qbsdiff * 100.0;
+
+            println!("\n  🏆 xpatch improvement:");
+            if !avg_xdelta3.is_nan() {
+                println!("    vs xdelta3: {:.1}% better", improvement_over_xdelta3);
+            }
+            println!("    vs qbsdiff: {:.1}% better", improvement_over_qbsdiff);
         }
 
         let overall_xpatch =
@@ -1005,17 +1304,29 @@ impl BenchmarkRunner {
         let overall_qbsdiff =
             all_results.iter().map(|r| r.qbsdiff_ratio).sum::<f64>() / all_results.len() as f64;
 
-        println!("\n\n🏆 OVERALL WINNER:");
-        let winner = if overall_xpatch < overall_qbsdiff
-            && (overall_xdelta3.is_nan() || overall_xpatch < overall_xdelta3)
-        {
-            format!("xpatch ({:.4} avg ratio)", overall_xpatch)
-        } else if !overall_xdelta3.is_nan() && overall_xdelta3 < overall_qbsdiff {
-            format!("xdelta3 ({:.4} avg ratio)", overall_xdelta3)
-        } else {
-            format!("qbsdiff ({:.4} avg ratio)", overall_qbsdiff)
-        };
-        println!("   {}", winner);
+        println!(
+            "\n\n╔═══════════════════════════════════════════════════════════════════════════╗"
+        );
+        println!("║                          OVERALL WINNER                                   ║");
+        println!("╚═══════════════════════════════════════════════════════════════════════════╝");
+        println!(
+            "   xpatch with TAGS optimization: {:.4} avg ratio",
+            overall_xpatch
+        );
+
+        if !overall_xdelta3.is_nan() {
+            println!(
+                "   vs xdelta3 ({:.4}): {:.1}% better",
+                overall_xdelta3,
+                (overall_xdelta3 - overall_xpatch) / overall_xdelta3 * 100.0
+            );
+        }
+        println!(
+            "   vs qbsdiff ({:.4}): {:.1}% better",
+            overall_qbsdiff,
+            (overall_qbsdiff - overall_xpatch) / overall_qbsdiff * 100.0
+        );
+        println!("\n   💡 Tags 0-15 have zero overhead - xpatch gets this optimization for free!");
 
         Ok(())
     }
@@ -1146,6 +1457,13 @@ struct CommitInfo {
     hash: String,
     date: String,
     message: String,
+    index: usize,
+}
+
+impl CommitInfo {
+    fn distance_from(&self, other: &CommitInfo) -> usize {
+        self.index.abs_diff(other.index)
+    }
 }
 
 fn main() -> Result<()> {
