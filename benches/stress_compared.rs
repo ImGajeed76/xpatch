@@ -418,6 +418,176 @@ fn measure_qbsdiff(test_name: &str, base: &[u8], new_data: &[u8]) {
     collect_stats(stats);
 }
 
+fn measure_zstd(test_name: &str, base: &[u8], new_data: &[u8]) {
+    use std::fs;
+    use std::process::Command;
+
+    // Skip empty data
+    if base.is_empty() || new_data.is_empty() {
+        eprintln!("⚠️  Skipping zstd for {}: empty data", test_name);
+        return;
+    }
+
+    // Check if zstd is available
+    if Command::new("zstd").arg("--version").output().is_err() {
+        eprintln!(
+            "⚠️  zstd command not found. Skipping zstd benchmark for {}",
+            test_name
+        );
+        return;
+    }
+
+    let pid = std::process::id();
+    let safe_test_name = test_name.replace("/", "_").replace(" ", "_");
+    let base_file = format!("/tmp/xpatch_bench_base_{}_{}.tmp", pid, safe_test_name);
+    let new_file = format!("/tmp/xpatch_bench_new_{}_{}.tmp", pid, safe_test_name);
+    let patch_file = format!("/tmp/xpatch_bench_patch_{}_{}.tmp", pid, safe_test_name);
+    let decoded_file = format!("/tmp/xpatch_bench_decoded_{}_{}.tmp", pid, safe_test_name);
+
+    // Write data to files
+    if let Err(e) = fs::write(&base_file, base) {
+        eprintln!(
+            "⚠️  Failed to write base file for zstd ({}): {}",
+            test_name, e
+        );
+        return;
+    }
+    if let Err(e) = fs::write(&new_file, new_data) {
+        eprintln!(
+            "⚠️  Failed to write new file for zstd ({}): {}",
+            test_name, e
+        );
+        let _ = fs::remove_file(&base_file);
+        return;
+    }
+
+    // Measure encoding time
+    let start = Instant::now();
+    let encode_output = Command::new("zstd")
+        .arg("--patch-from")
+        .arg(&base_file)
+        .arg(&new_file)
+        .arg("-f")
+        .arg("-o")
+        .arg(&patch_file)
+        .output();
+    let encode_time = start.elapsed().as_micros();
+
+    let encode_success = match encode_output {
+        Ok(output) => {
+            if !output.status.success() {
+                eprintln!(
+                    "⚠️  zstd encode failed for {}: {}",
+                    test_name,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            output.status.success()
+        }
+        Err(e) => {
+            eprintln!(
+                "⚠️  Failed to execute zstd command for {}: {}",
+                test_name, e
+            );
+            false
+        }
+    };
+
+    if !encode_success {
+        let _ = fs::remove_file(&base_file);
+        let _ = fs::remove_file(&new_file);
+        let _ = fs::remove_file(&patch_file);
+        return;
+    }
+
+    // Read patch size
+    let patch_data = match fs::read(&patch_file) {
+        Ok(data) => data,
+        Err(e) => {
+            eprintln!(
+                "⚠️  Failed to read patch file for zstd ({}): {}",
+                test_name, e
+            );
+            let _ = fs::remove_file(&base_file);
+            let _ = fs::remove_file(&new_file);
+            let _ = fs::remove_file(&patch_file);
+            return;
+        }
+    };
+
+    // Measure decoding time (NOTE: --patch-from is REQUIRED here)
+    let start = Instant::now();
+    let decode_output = Command::new("zstd")
+        .arg("-d")
+        .arg("--patch-from")
+        .arg(&base_file) // CRITICAL: Must specify base file for decoding
+        .arg(&patch_file)
+        .arg("-f")
+        .arg("-o")
+        .arg(&decoded_file)
+        .output();
+    let decode_time = start.elapsed().as_micros();
+
+    let decode_success = match decode_output {
+        Ok(output) => {
+            if !output.status.success() {
+                eprintln!(
+                    "⚠️  zstd decode failed for {}: {}",
+                    test_name,
+                    String::from_utf8_lossy(&output.stderr)
+                );
+            }
+            output.status.success()
+        }
+        Err(e) => {
+            eprintln!("⚠️  Failed to execute zstd decode for {}: {}", test_name, e);
+            false
+        }
+    };
+
+    // Verify decoded data matches new_data
+    if decode_success {
+        match fs::read(&decoded_file) {
+            Ok(decoded_data) => {
+                if decoded_data != new_data {
+                    eprintln!(
+                        "⚠️  zstd decode verification failed for {}: decoded data doesn't match",
+                        test_name
+                    );
+                }
+            }
+            Err(e) => {
+                eprintln!(
+                    "⚠️  Failed to read decoded file for zstd ({}): {}",
+                    test_name, e
+                );
+            }
+        }
+    }
+
+    // Clean up files
+    let _ = fs::remove_file(&base_file);
+    let _ = fs::remove_file(&new_file);
+    let _ = fs::remove_file(&patch_file);
+    let _ = fs::remove_file(&decoded_file);
+
+    if !decode_success {
+        return;
+    }
+
+    let stats = CompressionStats::calculate(
+        "zstd".to_string(),
+        test_name.to_string(),
+        base,
+        new_data,
+        &patch_data,
+        encode_time,
+        decode_time,
+    );
+
+    collect_stats(stats);
+}
+
 // ============================================================================
 // BENCHMARK: SIZE COMPARISON
 // ============================================================================
@@ -436,6 +606,7 @@ fn bench_library_comparison_sizes(c: &mut Criterion) {
         measure_xpatch(&test_name.as_str(), &base[..], &new_data[..], true);
         measure_xdelta3(&test_name.as_str(), &base[..], &new_data[..]);
         measure_qbsdiff(&test_name.as_str(), &base[..], &new_data[..]);
+        measure_zstd(&test_name.as_str(), &base[..], &new_data[..]);
 
         group.throughput(Throughput::Bytes(size as u64));
 
@@ -519,6 +690,7 @@ fn bench_library_comparison_patterns(c: &mut Criterion) {
         measure_xpatch(&test_name.as_str(), &base[..], &new_data[..], true);
         measure_xdelta3(&test_name.as_str(), &base[..], &new_data[..]);
         measure_qbsdiff(&test_name.as_str(), &base[..], &new_data[..]);
+        measure_zstd(&test_name.as_str(), &base[..], &new_data[..]);
 
         group.throughput(Throughput::Bytes(size as u64));
 
@@ -604,6 +776,7 @@ fn bench_library_comparison_changes(c: &mut Criterion) {
         measure_xpatch(&test_name.as_str(), &base[..], &new_data[..], true);
         measure_xdelta3(&test_name.as_str(), &base[..], &new_data[..]);
         measure_qbsdiff(&test_name.as_str(), &base[..], &new_data[..]);
+        measure_zstd(&test_name.as_str(), &base[..], &new_data[..]);
 
         // Benchmark xpatch
         group.bench_with_input(
