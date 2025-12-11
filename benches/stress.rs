@@ -18,148 +18,170 @@
 // For commercial use in proprietary software, a commercial license is
 // available. Contact xpatch-commercial@alias.oseifert.ch for details.
 
-use criterion::{BenchmarkId, Criterion, Throughput, criterion_group, criterion_main};
+//! Quick Benchmark: Human-Focused Changes
+//!
+//! Tests xpatch on what it's designed for:
+//! - Sequential additions (writing code)
+//! - Sequential deletions (removing code)
+//! - Small scattered edits (bug fixes)
+//! - Realistic file sizes (1-500KB)
+//! - Real data formats (code, docs, configs)
+//!
+//! Should run in under 2 minutes for quick feedback.
+
+use criterion::{Criterion, Throughput, criterion_group, criterion_main};
 use std::hint::black_box;
 use std::sync::Mutex;
 use std::time::Instant;
 use xpatch::delta;
 
 // ============================================================================
-// COMPRESSION STATISTICS
+// STATISTICS TRACKING
 // ============================================================================
 
 #[derive(Clone)]
-struct CompressionStats {
-    test_name: String,
-    original_size: usize,
+struct TestResult {
+    scenario: String,
+    format: String,
+    size: usize,
     delta_size: usize,
-    delta_ratio: f64,
-    space_savings: f64,
-    encode_time_us: u128,
-    decode_time_us: u128,
+    compression_ratio: f64,
+    encode_us: u128,
+    decode_us: u128,
 }
 
-impl CompressionStats {
-    fn calculate(
-        test_name: String,
-        base: &[u8],
-        new_data: &[u8],
-        delta: &[u8],
-        encode_time_us: u128,
-        decode_time_us: u128,
-    ) -> Self {
-        let original_size = base.len();
-        let new_size = new_data.len();
-        let delta_size = delta.len();
-        let delta_ratio = if new_size > 0 {
-            delta_size as f64 / new_size as f64
-        } else {
-            0.0
-        };
-        let space_savings = if original_size > 0 {
-            (1.0 - delta_size as f64 / original_size as f64) * 100.0
-        } else {
-            0.0
-        };
+static RESULTS: Mutex<Vec<TestResult>> = Mutex::new(Vec::new());
 
-        Self {
-            test_name,
-            original_size,
-            delta_size,
-            delta_ratio,
-            space_savings,
-            encode_time_us,
-            decode_time_us,
-        }
+fn record_result(result: TestResult) {
+    if let Ok(mut results) = RESULTS.lock() {
+        results.push(result);
     }
 }
 
-// Global stats collector using Mutex for thread safety
-static STATS_COLLECTOR: Mutex<Vec<CompressionStats>> = Mutex::new(Vec::new());
-
-fn collect_stats(stats: CompressionStats) {
-    if let Ok(mut collector) = STATS_COLLECTOR.lock() {
-        collector.push(stats);
+fn print_summary() {
+    let results = RESULTS.lock().unwrap();
+    if results.is_empty() {
+        return;
     }
-}
 
-fn print_unified_summary() {
-    if let Ok(stats_list) = STATS_COLLECTOR.lock() {
-        if stats_list.is_empty() {
-            return;
-        }
+    println!("\n╔═══════════════════════════════════════════════════════════════════╗");
+    println!("║              XPATCH HUMAN-FOCUSED BENCHMARK SUMMARY               ║");
+    println!("╚═══════════════════════════════════════════════════════════════════╝\n");
 
-        println!(
-            "\n╔════════════════════════════════════════════════════════════════════════════════════╗"
-        );
-        println!(
-            "║                         UNIFIED BENCHMARK SUMMARY                                  ║"
-        );
-        println!(
-            "╚════════════════════════════════════════════════════════════════════════════════════╝\n"
-        );
+    // Overall stats
+    let avg_ratio = results.iter().map(|r| r.compression_ratio).sum::<f64>() / results.len() as f64;
+    let avg_encode = results.iter().map(|r| r.encode_us).sum::<u128>() / results.len() as u128;
+    let avg_decode = results.iter().map(|r| r.decode_us).sum::<u128>() / results.len() as u128;
 
-        // Calculate aggregates
-        let avg_ratio: f64 =
-            stats_list.iter().map(|s| s.delta_ratio).sum::<f64>() / stats_list.len() as f64;
-        let avg_savings: f64 =
-            stats_list.iter().map(|s| s.space_savings).sum::<f64>() / stats_list.len() as f64;
-        let best_ratio = stats_list
+    println!("📊 OVERALL PERFORMANCE:");
+    println!("  Total tests:         {}", results.len());
+    println!(
+        "  Avg compression:     {:.3} ({:.1}% saved)",
+        avg_ratio,
+        (1.0 - avg_ratio) * 100.0
+    );
+    println!("  Avg encode time:     {} µs", avg_encode);
+    println!("  Avg decode time:     {} µs\n", avg_decode);
+
+    // By scenario
+    println!("🎯 BY SCENARIO:");
+    let scenarios: Vec<String> = results
+        .iter()
+        .map(|r| r.scenario.clone())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    for scenario in scenarios {
+        let scenario_results: Vec<_> = results.iter().filter(|r| r.scenario == scenario).collect();
+        let avg = scenario_results
             .iter()
-            .map(|s| s.delta_ratio)
-            .fold(f64::INFINITY, f64::min);
-        let worst_ratio = stats_list
-            .iter()
-            .map(|s| s.delta_ratio)
-            .fold(f64::NEG_INFINITY, f64::max);
-
-        println!("📊 COMPRESSION METRICS:");
-        println!("  Average delta ratio:     {:.3}", avg_ratio);
-        println!("  Average space savings:   {:.1}%", avg_savings);
-        println!("  Best compression:        {:.3}", best_ratio);
-        println!("  Worst compression:       {:.3}\n", worst_ratio);
-
-        let avg_encode_time: u128 =
-            stats_list.iter().map(|s| s.encode_time_us).sum::<u128>() / stats_list.len() as u128;
-        let avg_decode_time: u128 =
-            stats_list.iter().map(|s| s.decode_time_us).sum::<u128>() / stats_list.len() as u128;
-
-        println!("⚡ PERFORMANCE METRICS:");
-        println!("  Average encode time:     {} µs", avg_encode_time);
-        println!("  Average decode time:     {} µs\n", avg_decode_time);
-
-        // Detailed table
+            .map(|r| r.compression_ratio)
+            .sum::<f64>()
+            / scenario_results.len() as f64;
         println!(
-            "{:<40} {:>10} {:>10} {:>8} {:>9} {:>12} {:>12}",
-            "Test Case", "Original", "Delta", "Ratio", "Savings", "Encode (µs)", "Decode (µs)"
+            "  {:<25} {:.3} ({:.1}% saved)",
+            scenario,
+            avg,
+            (1.0 - avg) * 100.0
         );
-        println!("{}", "─".repeat(110));
-
-        for stat in stats_list.iter() {
-            println!(
-                "{:<40} {:>10} {:>10} {:>8.3} {:>8.1}% {:>12} {:>12}",
-                truncate_str(&stat.test_name, 40),
-                format_bytes(stat.original_size),
-                format_bytes(stat.delta_size),
-                stat.delta_ratio,
-                stat.space_savings,
-                stat.encode_time_us,
-                stat.decode_time_us
-            );
-        }
-        println!("\n");
     }
+
+    // By format
+    println!("\n📝 BY FORMAT:");
+    let formats: Vec<String> = results
+        .iter()
+        .map(|r| r.format.clone())
+        .collect::<std::collections::HashSet<_>>()
+        .into_iter()
+        .collect();
+
+    for format in formats {
+        let format_results: Vec<_> = results.iter().filter(|r| r.format == format).collect();
+        let avg = format_results
+            .iter()
+            .map(|r| r.compression_ratio)
+            .sum::<f64>()
+            / format_results.len() as f64;
+        println!(
+            "  {:<25} {:.3} ({:.1}% saved)",
+            format,
+            avg,
+            (1.0 - avg) * 100.0
+        );
+    }
+
+    // By size
+    println!("\n📏 BY FILE SIZE:");
+    let mut by_size: Vec<(&TestResult, String)> =
+        results.iter().map(|r| (r, format_size(r.size))).collect();
+    by_size.sort_by_key(|(r, _)| r.size);
+
+    let small: Vec<_> = by_size
+        .iter()
+        .filter(|(r, _)| r.size < 10_000)
+        .map(|(r, _)| *r)
+        .collect();
+    let medium: Vec<_> = by_size
+        .iter()
+        .filter(|(r, _)| r.size >= 10_000 && r.size < 100_000)
+        .map(|(r, _)| *r)
+        .collect();
+    let large: Vec<_> = by_size
+        .iter()
+        .filter(|(r, _)| r.size >= 100_000)
+        .map(|(r, _)| *r)
+        .collect();
+
+    if !small.is_empty() {
+        let avg = small.iter().map(|r| r.compression_ratio).sum::<f64>() / small.len() as f64;
+        println!(
+            "  Small (<10KB):        {:.3} ({:.1}% saved)",
+            avg,
+            (1.0 - avg) * 100.0
+        );
+    }
+    if !medium.is_empty() {
+        let avg = medium.iter().map(|r| r.compression_ratio).sum::<f64>() / medium.len() as f64;
+        println!(
+            "  Medium (10-100KB):    {:.3} ({:.1}% saved)",
+            avg,
+            (1.0 - avg) * 100.0
+        );
+    }
+    if !large.is_empty() {
+        let avg = large.iter().map(|r| r.compression_ratio).sum::<f64>() / large.len() as f64;
+        println!(
+            "  Large (>100KB):       {:.3} ({:.1}% saved)",
+            avg,
+            (1.0 - avg) * 100.0
+        );
+    }
+
+    println!("\n✅ Benchmark complete! Run 'cargo bench stress' to see detailed timings.\n");
 }
 
-fn truncate_str(s: &str, max_len: usize) -> String {
-    if s.len() <= max_len {
-        s.to_string()
-    } else {
-        format!("{}...", &s[..max_len - 3])
-    }
-}
-
-fn format_bytes(bytes: usize) -> String {
+fn format_size(bytes: usize) -> String {
     if bytes < 1024 {
         format!("{} B", bytes)
     } else if bytes < 1024 * 1024 {
@@ -170,504 +192,443 @@ fn format_bytes(bytes: usize) -> String {
 }
 
 // ============================================================================
-// TEST DATA GENERATORS
+// REALISTIC DATA GENERATORS
 // ============================================================================
 
-fn generate_realistic_text(size: usize) -> Vec<u8> {
-    let paragraphs = vec![
-        "The quick brown fox jumps over the lazy dog. ",
-        "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ",
-        "In a world where technology evolves rapidly, adaptation is key. ",
-        "Performance optimization requires careful measurement and analysis. ",
-        "Data compression algorithms trade space for time complexity. ",
-    ];
+fn generate_rust_code(lines: usize) -> String {
+    let mut code = String::from("use std::collections::HashMap;\n\n");
+    code.push_str("pub struct Example {\n    data: Vec<String>,\n}\n\n");
 
-    let mut result = Vec::with_capacity(size);
-    let mut idx = 0;
-    while result.len() < size {
-        result.extend_from_slice(paragraphs[idx % paragraphs.len()].as_bytes());
-        idx += 1;
+    for i in 0..lines {
+        code.push_str(&format!(
+            "fn function_{}() -> Result<(), Error> {{\n    let x = {};\n    Ok(())\n}}\n\n",
+            i, i
+        ));
     }
-    result.truncate(size);
-    result
+
+    code
 }
 
-fn generate_code_text(size: usize) -> Vec<u8> {
-    let code_lines = vec![
-        "fn main() {\n",
-        "    let x = 42;\n",
-        "    println!(\"Hello, world!\");\n",
-        "    for i in 0..10 {\n",
-        "        process_item(i);\n",
-        "    }\n",
-        "}\n",
-    ];
+fn generate_markdown_docs(sections: usize) -> String {
+    let mut doc = String::from("# Project Documentation\n\n");
 
-    let mut result = Vec::with_capacity(size);
-    let mut idx = 0;
-    while result.len() < size {
-        result.extend_from_slice(code_lines[idx % code_lines.len()].as_bytes());
-        idx += 1;
+    for i in 0..sections {
+        doc.push_str(&format!("## Section {}\n\n", i));
+        doc.push_str("Lorem ipsum dolor sit amet, consectetur adipiscing elit. ");
+        doc.push_str("Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua.\n\n");
+        doc.push_str("```rust\nfn example() {\n    println!(\"Hello\");\n}\n```\n\n");
     }
-    result.truncate(size);
-    result
+
+    doc
 }
 
-fn generate_repetitive_data(size: usize) -> Vec<u8> {
-    let pattern = b"AAAAAAAAAA";
-    let mut result = Vec::with_capacity(size);
-    while result.len() < size {
-        result.extend_from_slice(pattern);
+fn generate_json_config(entries: usize) -> String {
+    let mut json = String::from("{\n  \"version\": \"1.0.0\",\n  \"settings\": {\n");
+
+    for i in 0..entries {
+        json.push_str(&format!("    \"key_{}\": \"value_{}\",\n", i, i));
     }
-    result.truncate(size);
-    result
+
+    json.push_str("    \"enabled\": true\n  }\n}\n");
+    json
 }
 
-fn generate_json_data(size: usize) -> Vec<u8> {
-    let template = r#"{"id":12345,"name":"example_user","email":"user@example.com","data":{"nested":true,"values":[1,2,3,4,5]},"timestamp":1234567890},"#;
-    let mut result = Vec::with_capacity(size);
-    result.push(b'[');
-    while result.len() < size - 1 {
-        result.extend_from_slice(template.as_bytes());
+fn generate_log_file(entries: usize) -> String {
+    let mut log = String::new();
+    let levels = ["INFO", "WARN", "ERROR", "DEBUG"];
+
+    for i in 0..entries {
+        let level = levels[i % levels.len()];
+        log.push_str(&format!(
+            "[2025-01-{:02} 12:00:{:02}] {} [thread-{}] Processing request #{}\n",
+            (i / 3600) % 31 + 1,
+            i % 60,
+            level,
+            i % 10,
+            i
+        ));
     }
-    result.push(b']');
-    result.truncate(size);
-    result
+
+    log
 }
 
 // ============================================================================
-// CHANGE GENERATORS
+// HUMAN CHANGE SCENARIOS
 // ============================================================================
 
-fn small_insert_at(base: &[u8], position: f32) -> Vec<u8> {
-    let insert_pos = (base.len() as f32 * position) as usize;
-    let insertion = b" [INSERTED] ";
+fn apply_sequential_additions(base: &str, lines: usize) -> String {
+    let mut result = base.to_string();
 
-    let mut result = Vec::with_capacity(base.len() + insertion.len());
-    result.extend_from_slice(&base[..insert_pos]);
-    result.extend_from_slice(insertion);
-    result.extend_from_slice(&base[insert_pos..]);
-    result
-}
-
-fn append_text(base: &[u8], append_size: usize) -> Vec<u8> {
-    let mut result = base.to_vec();
-    result.extend(vec![b'X'; append_size]);
-    result
-}
-
-fn truncate_text(base: &[u8], remove_size: usize) -> Vec<u8> {
-    let new_len = base.len().saturating_sub(remove_size);
-    base[..new_len].to_vec()
-}
-
-fn mixed_operations(base: &[u8]) -> Vec<u8> {
-    let mut result = base.to_vec();
-
-    if result.len() < 1000 {
-        return result;
-    }
-
-    // Insert at 1/4
-    let pos1 = result.len() / 4;
-    result.splice(pos1..pos1, b"[NEW]".iter().cloned());
-
-    // Remove at 1/2
-    let pos2 = result.len() / 2;
-    result.drain(pos2..pos2 + 20.min(result.len() - pos2));
-
-    // Replace at 3/4
-    let pos3 = result.len() * 3 / 4;
-    for i in pos3..pos3 + 30.min(result.len() - pos3) {
-        result[i] = b'M';
+    for i in 0..lines {
+        result.push_str(&format!("    let new_var_{} = {};\n", i, i));
     }
 
     result
 }
 
-fn complete_replacement(base: &[u8]) -> Vec<u8> {
-    vec![b'Z'; base.len()]
+fn apply_sequential_deletions(base: &str, remove_count: usize) -> String {
+    let lines: Vec<&str> = base.lines().collect();
+    if lines.len() <= remove_count {
+        return String::new();
+    }
+
+    lines[..lines.len() - remove_count].join("\n")
+}
+
+fn apply_scattered_edits(base: &str, edit_count: usize) -> String {
+    let mut lines: Vec<String> = base.lines().map(|s| s.to_string()).collect();
+
+    for i in 0..edit_count.min(lines.len()) {
+        let idx = (i * lines.len() / edit_count) % lines.len();
+        lines[idx] = format!("    // EDITED: {}", lines[idx].trim());
+    }
+
+    lines.join("\n")
+}
+
+fn apply_variable_rename(base: &str, old: &str, new: &str) -> String {
+    base.replace(old, new)
 }
 
 // ============================================================================
-// HELPER: Run and collect stats
+// BENCHMARK HELPER
 // ============================================================================
 
-fn measure_and_collect(test_name: &str, base: &[u8], new_data: &[u8], enable_zstd: bool) {
-    // Measure encode time
+fn measure_compression(scenario: &str, format: &str, base: &[u8], new: &[u8]) -> TestResult {
     let start = Instant::now();
-    let delta = delta::encode(0, base, new_data, enable_zstd);
-    let encode_time = start.elapsed().as_micros();
+    let delta = delta::encode(0, base, new, true);
+    let encode_us = start.elapsed().as_micros();
 
-    // Measure decode time
     let start = Instant::now();
-    let _decoded = delta::decode(base, &delta[..]).unwrap();
-    let decode_time = start.elapsed().as_micros();
+    let _decoded = delta::decode(base, &delta).unwrap();
+    let decode_us = start.elapsed().as_micros();
 
-    let stats = CompressionStats::calculate(
-        test_name.to_string(),
-        base,
-        new_data,
-        &delta[..],
-        encode_time,
-        decode_time,
-    );
-
-    collect_stats(stats);
-}
-
-// ============================================================================
-// BENCHMARK: DIFFERENT SIZES
-// ============================================================================
-
-fn bench_sizes(c: &mut Criterion) {
-    let mut group = c.benchmark_group("sizes");
-    group.sample_size(10); // Reduced from 20
-
-    for size in [100_000, 1_000_000, 5_000_000] {
-        let base = generate_realistic_text(size);
-        let new_data = small_insert_at(&base[..], 0.5);
-
-        // Collect stats once
-        measure_and_collect(
-            &format!("size_{}", format_bytes(size)).as_str(),
-            &base[..],
-            &new_data[..],
-            false,
-        );
-
-        group.throughput(Throughput::Bytes(size as u64));
-
-        group.bench_with_input(
-            BenchmarkId::new("encode", size),
-            &(&base, &new_data),
-            |b, (base, new_data)| {
-                b.iter(|| {
-                    delta::encode(
-                        black_box(0),
-                        black_box(&base[..]),
-                        black_box(&new_data[..]),
-                        black_box(false),
-                    )
-                });
-            },
-        );
-
-        let delta = delta::encode(0, &base[..], &new_data[..], false);
-        group.bench_with_input(
-            BenchmarkId::new("decode", size),
-            &(&base, &delta),
-            |b, (base, delta)| {
-                b.iter(|| delta::decode(black_box(&base[..]), black_box(&delta[..])).unwrap());
-            },
-        );
+    TestResult {
+        scenario: scenario.to_string(),
+        format: format.to_string(),
+        size: new.len(),
+        delta_size: delta.len(),
+        compression_ratio: delta.len() as f64 / new.len() as f64,
+        encode_us,
+        decode_us,
     }
+}
+
+// ============================================================================
+// BENCHMARKS
+// ============================================================================
+
+fn bench_small_files(c: &mut Criterion) {
+    let mut group = c.benchmark_group("small_files");
+    group.sample_size(20);
+
+    // Small Rust file (5KB)
+    let base = generate_rust_code(50);
+    let new = apply_sequential_additions(&base, 10);
+    let result = measure_compression(
+        "sequential_additions",
+        "rust_small",
+        base.as_bytes(),
+        new.as_bytes(),
+    );
+    record_result(result);
+
+    group.throughput(Throughput::Bytes(new.len() as u64));
+    group.bench_function("rust_sequential_add", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
+
+    // Small edits
+    let base = generate_rust_code(50);
+    let new = apply_scattered_edits(&base, 5);
+    let result = measure_compression(
+        "scattered_edits",
+        "rust_small",
+        base.as_bytes(),
+        new.as_bytes(),
+    );
+    record_result(result);
+
+    group.bench_function("rust_scattered_edits", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
     group.finish();
 }
 
-// ============================================================================
-// BENCHMARK: DATA PATTERNS
-// ============================================================================
+fn bench_medium_files(c: &mut Criterion) {
+    let mut group = c.benchmark_group("medium_files");
+    group.sample_size(15);
 
-fn bench_data_patterns(c: &mut Criterion) {
-    let mut group = c.benchmark_group("data_patterns");
-    let size = 100_000;
+    // Medium Rust file (50KB)
+    let base = generate_rust_code(500);
+    let new = apply_sequential_additions(&base, 20);
+    let result = measure_compression(
+        "sequential_additions",
+        "rust_medium",
+        base.as_bytes(),
+        new.as_bytes(),
+    );
+    record_result(result);
 
-    let test_cases = vec![
-        ("realistic", generate_realistic_text(size)),
-        ("code", generate_code_text(size)),
-        ("repetitive", generate_repetitive_data(size)),
-        ("json", generate_json_data(size)),
-    ];
+    group.throughput(Throughput::Bytes(new.len() as u64));
+    group.bench_function("rust_sequential_add", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
-    for (name, base) in test_cases {
-        let new_data = small_insert_at(&base[..], 0.5);
+    // Variable rename (common refactor)
+    let base = generate_rust_code(500);
+    let new = apply_variable_rename(&base, "function_", "process_");
+    let result = measure_compression(
+        "variable_rename",
+        "rust_medium",
+        base.as_bytes(),
+        new.as_bytes(),
+    );
+    record_result(result);
 
-        // Collect stats once
-        measure_and_collect(
-            &format!("pattern_{}", name).as_str(),
-            &base[..],
-            &new_data[..],
-            false,
-        );
+    group.bench_function("rust_variable_rename", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
-        group.throughput(Throughput::Bytes(size as u64));
+    // Deletions
+    let base = generate_rust_code(500);
+    let new = apply_sequential_deletions(&base, 100);
+    let result = measure_compression(
+        "sequential_deletions",
+        "rust_medium",
+        base.as_bytes(),
+        new.as_bytes(),
+    );
+    record_result(result);
 
-        group.bench_with_input(
-            BenchmarkId::new("encode", name),
-            &(&base, &new_data),
-            |b, (base, new_data)| {
-                b.iter(|| {
-                    delta::encode(
-                        black_box(0),
-                        black_box(&base[..]),
-                        black_box(&new_data[..]),
-                        black_box(false),
-                    )
-                });
-            },
-        );
-    }
+    group.bench_function("rust_sequential_delete", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
     group.finish();
 }
 
-// ============================================================================
-// BENCHMARK: CHANGE TYPES (Key representative cases)
-// ============================================================================
+fn bench_large_files(c: &mut Criterion) {
+    let mut group = c.benchmark_group("large_files");
+    group.sample_size(10);
 
-fn bench_change_types(c: &mut Criterion) {
-    let mut group = c.benchmark_group("change_types");
-    let size = 100_000;
-    let base = generate_realistic_text(size);
+    // Large Rust file (200KB)
+    let base = generate_rust_code(2000);
+    let new = apply_sequential_additions(&base, 50);
+    let result = measure_compression(
+        "sequential_additions",
+        "rust_large",
+        base.as_bytes(),
+        new.as_bytes(),
+    );
+    record_result(result);
 
-    group.throughput(Throughput::Bytes(size as u64));
-
-    // Representative change types
-    let test_cases = vec![
-        ("insert_start", small_insert_at(&base[..], 0.0)),
-        ("insert_middle", small_insert_at(&base[..], 0.5)),
-        ("insert_end", small_insert_at(&base[..], 1.0)),
-        ("append_small", append_text(&base[..], 100)),
-        ("append_large", append_text(&base[..], 10000)),
-        ("truncate_small", truncate_text(&base[..], 100)),
-        ("truncate_large", truncate_text(&base[..], 10000)),
-        ("mixed", mixed_operations(&base[..])),
-        ("worst_case", complete_replacement(&base[..])),
-    ];
-
-    for (name, new_data) in &test_cases {
-        // Collect stats once
-        measure_and_collect(
-            &format!("change_{}", name).as_str(),
-            &base[..],
-            &new_data[..],
-            true,
-        );
-
-        group.bench_with_input(
-            BenchmarkId::new("encode", name),
-            &(&base, new_data),
-            |b, (base, new_data)| {
-                b.iter(|| {
-                    delta::encode(
-                        black_box(0),
-                        black_box(&base[..]),
-                        black_box(&new_data[..]),
-                        black_box(true),
-                    )
-                });
-            },
-        );
-    }
+    group.throughput(Throughput::Bytes(new.len() as u64));
+    group.bench_function("rust_sequential_add", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
     group.finish();
 }
 
-// ============================================================================
-// BENCHMARK: ZSTD COMPARISON
-// ============================================================================
+fn bench_documentation(c: &mut Criterion) {
+    let mut group = c.benchmark_group("documentation");
+    group.sample_size(15);
 
-fn bench_zstd_comparison(c: &mut Criterion) {
-    let mut group = c.benchmark_group("zstd_comparison");
-    let size = 100_000;
-    let base = generate_realistic_text(size);
-    let new_data = mixed_operations(&base[..]);
-
-    group.throughput(Throughput::Bytes(size as u64));
-
-    // Without zstd
-    measure_and_collect("zstd_disabled", &base[..], &new_data[..], false);
-
-    group.bench_with_input(
-        BenchmarkId::new("encode", "without_zstd"),
-        &(&base, &new_data),
-        |b, (base, new_data)| {
-            b.iter(|| {
-                delta::encode(
-                    black_box(0),
-                    black_box(&base[..]),
-                    black_box(&new_data[..]),
-                    black_box(false),
-                )
-            });
-        },
+    // Add new section
+    let base = generate_markdown_docs(20);
+    let new = apply_sequential_additions(&base, 5);
+    let result = measure_compression(
+        "sequential_additions",
+        "markdown",
+        base.as_bytes(),
+        new.as_bytes(),
     );
+    record_result(result);
 
-    // With zstd
-    measure_and_collect("zstd_enabled", &base[..], &new_data[..], true);
+    group.throughput(Throughput::Bytes(new.len() as u64));
+    group.bench_function("markdown_add_section", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
-    group.bench_with_input(
-        BenchmarkId::new("encode", "with_zstd"),
-        &(&base, &new_data),
-        |b, (base, new_data)| {
-            b.iter(|| {
-                delta::encode(
-                    black_box(0),
-                    black_box(&base[..]),
-                    black_box(&new_data[..]),
-                    black_box(true),
-                )
-            });
-        },
+    // Edit existing sections
+    let base = generate_markdown_docs(20);
+    let new = apply_scattered_edits(&base, 5);
+    let result = measure_compression(
+        "scattered_edits",
+        "markdown",
+        base.as_bytes(),
+        new.as_bytes(),
     );
+    record_result(result);
+
+    group.bench_function("markdown_edit_sections", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
     group.finish();
 }
 
-// ============================================================================
-// BENCHMARK: ROUNDTRIP
-// ============================================================================
+fn bench_config_files(c: &mut Criterion) {
+    let mut group = c.benchmark_group("config_files");
+    group.sample_size(15);
 
-fn bench_roundtrip(c: &mut Criterion) {
-    let mut group = c.benchmark_group("roundtrip");
+    // Add config entries
+    let base = generate_json_config(50);
+    let new = apply_sequential_additions(&base, 5);
+    let result = measure_compression(
+        "sequential_additions",
+        "json",
+        base.as_bytes(),
+        new.as_bytes(),
+    );
+    record_result(result);
 
-    for size in [10_000, 100_000, 1_000_000] {
-        let base = generate_realistic_text(size);
-        let new_data = mixed_operations(&base[..]);
+    group.throughput(Throughput::Bytes(new.len() as u64));
+    group.bench_function("json_add_entries", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
-        // Collect stats for roundtrip
-        measure_and_collect(
-            &format!("roundtrip_{}", format_bytes(size)).as_str(),
-            &base[..],
-            &new_data[..],
-            true,
-        );
+    // Edit values
+    let base = generate_json_config(50);
+    let new = apply_variable_rename(&base, "value_", "updated_");
+    let result = measure_compression("value_updates", "json", base.as_bytes(), new.as_bytes());
+    record_result(result);
 
-        group.throughput(Throughput::Bytes(size as u64));
-
-        group.bench_with_input(
-            BenchmarkId::new("full_cycle", size),
-            &(&base, &new_data),
-            |b, (base, new_data)| {
-                b.iter(|| {
-                    let delta = delta::encode(
-                        black_box(0),
-                        black_box(&base[..]),
-                        black_box(&new_data[..]),
-                        black_box(true),
-                    );
-
-                    let decoded =
-                        delta::decode(black_box(&base[..]), black_box(&delta[..])).unwrap();
-
-                    assert_eq!(decoded.len(), new_data.len());
-                    black_box(decoded)
-                });
-            },
-        );
-    }
+    group.bench_function("json_update_values", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
     group.finish();
 }
 
-// ============================================================================
-// BENCHMARK: EDGE CASES
-// ============================================================================
+fn bench_log_files(c: &mut Criterion) {
+    let mut group = c.benchmark_group("log_files");
+    group.sample_size(15);
 
-fn bench_edge_cases(c: &mut Criterion) {
-    let mut group = c.benchmark_group("edge_cases");
-
-    // Empty to data
-    let base_empty = Vec::new();
-    let new_from_empty = b"Hello, World!".to_vec();
-    measure_and_collect(
-        "edge_empty_to_data",
-        &base_empty[..],
-        &new_from_empty[..],
-        false,
+    // Append new logs (common scenario)
+    let base = generate_log_file(1000);
+    let new = apply_sequential_additions(&base, 100);
+    let result = measure_compression(
+        "sequential_additions",
+        "logs",
+        base.as_bytes(),
+        new.as_bytes(),
     );
+    record_result(result);
 
-    group.bench_with_input(
-        BenchmarkId::new("encode", "empty_to_data"),
-        &(&base_empty, &new_from_empty),
-        |b, (base, new_data)| {
-            b.iter(|| {
-                delta::encode(
-                    black_box(0),
-                    black_box(&base[..]),
-                    black_box(&new_data[..]),
-                    black_box(false),
-                )
-            });
-        },
-    );
-
-    // Data to empty
-    let base_data = b"Hello, World!".to_vec();
-    let new_empty = Vec::new();
-    measure_and_collect("edge_data_to_empty", &base_data[..], &new_empty[..], false);
-
-    group.bench_with_input(
-        BenchmarkId::new("encode", "data_to_empty"),
-        &(&base_data, &new_empty),
-        |b, (base, new_data)| {
-            b.iter(|| {
-                delta::encode(
-                    black_box(0),
-                    black_box(&base[..]),
-                    black_box(&new_data[..]),
-                    black_box(false),
-                )
-            });
-        },
-    );
-
-    // Single byte change
-    let base_single = generate_realistic_text(10000);
-    let mut new_single = base_single.to_owned();
-    new_single[5000] = b'X';
-    measure_and_collect("edge_single_byte", &base_single[..], &new_single[..], false);
-
-    group.bench_with_input(
-        BenchmarkId::new("encode", "single_byte_change"),
-        &(&base_single, &new_single),
-        |b, (base, new_data)| {
-            b.iter(|| {
-                delta::encode(
-                    black_box(0),
-                    black_box(&base[..]),
-                    black_box(&new_data[..]),
-                    black_box(false),
-                )
-            });
-        },
-    );
+    group.throughput(Throughput::Bytes(new.len() as u64));
+    group.bench_function("logs_append", |b| {
+        b.iter(|| {
+            let delta = delta::encode(
+                black_box(0),
+                black_box(base.as_bytes()),
+                black_box(new.as_bytes()),
+                black_box(true),
+            );
+            delta::decode(black_box(base.as_bytes()), black_box(&delta)).unwrap()
+        });
+    });
 
     group.finish();
 
-    // Print summary at the very end
-    print_unified_summary();
+    // Print summary at the end
+    print_summary();
 }
 
 // ============================================================================
 // CRITERION CONFIGURATION
 // ============================================================================
 
-fn configure_criterion() -> Criterion {
-    Criterion::default()
-        .with_output_color(true)
-        .significance_level(0.1)
-        .noise_threshold(0.05)
-        .warm_up_time(std::time::Duration::from_secs(2)) // Reduced from 3
-}
+criterion_group!(
+    benches,
+    bench_small_files,
+    bench_medium_files,
+    bench_large_files,
+    bench_documentation,
+    bench_config_files,
+    bench_log_files
+);
 
-// ============================================================================
-// FINALIZE AND PRINT SUMMARY
-// ============================================================================
-
-criterion_group! {
-    name = core_benches;
-    config = configure_criterion();
-    targets = bench_sizes, bench_data_patterns, bench_change_types
-}
-
-criterion_group! {
-    name = advanced_benches;
-    config = configure_criterion();
-    targets = bench_zstd_comparison, bench_roundtrip, bench_edge_cases
-}
-
-// Use criterion_main which will print our summary at the end
-criterion_main!(core_benches, advanced_benches);
+criterion_main!(benches);

@@ -3,6 +3,7 @@
 .vscode
 benchmark_results/
 benchmark_cache/
+cache*/
 Cargo.lock
 *.orig
 *.profraw
