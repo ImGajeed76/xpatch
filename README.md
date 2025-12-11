@@ -16,33 +16,35 @@ on the type of change detected between data versions.
     - Byte removal (Remove)
     - Repetitive pattern detection (RepeatChars, RepeatTokens)
     - General-purpose delta compression (GDelta, GDeltaZstd)
-- **Excellent Compression Ratios**: Achieves 99.5% average space savings on real-world code changes
+- **Excellent Compression**: 99.4-99.8% average space savings on real-world code changes
 - **Fast Performance**: 40-55 GB/s throughput for typical changes
 - **Optional zstd Compression**: Additional compression layer for complex changes
 - **Metadata Support**: Embed version tags with zero overhead for values 0-15
 
 ## Performance
 
-All encoding and decoding operations are single-threaded. The benchmark infrastructure uses multiple threads to process
-many deltas in parallel, but each individual encoding is sequential.
+Tested on real-world git repositories with 1.2+ million actual code changes. All operations are single-threaded.
 
-**Typical Performance** (simple insertions, deletions, small changes):
+### Real-World Performance (tokio & mdn/content repositories):
 
-- Encoding: 1-5 microseconds (40-55 GB/s)
-- Decoding: 1-5 microseconds (40-55 GB/s)
+**Sequential Mode** (comparing against immediate previous version):
 
-**Slower Cases** (complex changes requiring GDelta):
+- Encoding: 10-14 µs median
+- Decoding: <1 µs (effectively instant)
 
-- Encoding: 50-200 microseconds (0.5-2 GB/s)
-- Decoding: 5-50 microseconds (2-20 GB/s)
+**Tag Optimization Mode** (searching 16 previous versions for best base):
 
-**Edge Cases** (worst-case scenarios, complete rewrites):
+- Encoding: 104-208 µs median (slower due to trying multiple bases)
+- Decoding: <1 µs (effectively instant)
 
-- Encoding: up to 200 microseconds for 100KB files (~500 MB/s)
-- Decoding: 30-50 microseconds (~2-3 GB/s)
+**Compression Results:**
 
-Most real-world changes fall into the "typical" category. See [test_results](./test_results) for detailed benchmark
-data.
+- Code repositories: 2 bytes median (99.8% space saved)
+- Documentation: 23 bytes median (99.4% space saved)
+- Sequential mode: 25-68 bytes median (98.3-98.4% space saved)
+
+Most real-world changes compress extremely well due to localized edits. See test_results for detailed benchmark data
+across different file types and change patterns.
 
 ## Installation
 
@@ -50,7 +52,7 @@ Add xpatch to your `Cargo.toml`:
 
 ```toml
 [dependencies]
-xpatch = "0.1.0"
+xpatch = "0.2.0"
 ```
 
 ## License
@@ -58,18 +60,21 @@ xpatch = "0.1.0"
 This project is dual-licensed under:
 
 ### Option 1: AGPL-3.0-or-later (Free for Open Source)
+
 Free to use in open source projects that comply with the AGPL license.
 If you modify xpatch and distribute it (including as a web service),
 you must open-source your modifications under AGPL.
 
 ### Option 2: Commercial License (For Proprietary Use)
+
 For companies that want to use xpatch in closed-source products,
-a commercial license is available. Pricing is flexible.
+a commercial license is available.
 
 **To purchase a commercial license or request a quote:**
 Email: xpatch-commercial@alias.oseifert.ch
 
 ### Contributor License Agreement
+
 All contributors must sign a CLA that grants us rights to relicense
 their contributions under both AGPL and commercial terms.
 
@@ -144,22 +149,42 @@ xpatch decode base.txt patch.xp -o restored.txt
 xpatch info patch.xp
 ```
 
-See `src/bin/xpatch/README.md` for detailed CLI documentation.
+See `src/bin/cli/README.md` for detailed CLI documentation.
 
 ## Benchmark Results
 
-Tested on 337,378 real-world Git commit diffs across three repositories (Git, Neovim, Tokio). All measurements are
-single-threaded performance.
+Tested on **1,359,468 real-world Git commit changes** across two repositories (tokio: 133,728 deltas, mdn/content:
+1,225,740 deltas). All measurements are single-threaded performance.
 
 **Hardware**: AMD Ryzen 7 7800X3D (16 threads), 64GB DDR5 RAM, Fedora Linux
 
-| Algorithm | Avg Compression Ratio | Avg Space Savings | Avg Encode Time | Avg Decode Time |
-|-----------|-----------------------|-------------------|-----------------|-----------------|
-| xpatch    | 0.0043                | 99.6%             | 0.69 ms         | 0.03 ms         |
-| xdelta3   | 0.0197                | 98.0%             | 0.12 ms         | 0.01 ms         |
-| qbsdiff   | 0.0073                | 99.3%             | 17.29 ms        | 1.66 ms         |
+### tokio (Rust Async Runtime - Code Repository)
 
-**Win Rate** (best compression in head-to-head comparison): xpatch wins 95.4% of cases.
+| Algorithm         | Median Delta | Compression Ratio | Space Saved | Median Encode | Median Decode |
+|-------------------|--------------|-------------------|-------------|---------------|---------------|
+| **xpatch_tags**   | **2 bytes**  | **0.0019**        | **99.8%**   | 208 µs        | 0 µs          |
+| xpatch_sequential | 68 bytes     | 0.0165            | 98.4%       | 14 µs         | 0 µs          |
+| vcdiff (xdelta3)  | 97 bytes     | 0.0276            | 97.2%       | 15 µs         | 3 µs          |
+| gdelta            | 69 bytes     | 0.0180            | 98.2%       | 1 µs          | 0 µs          |
+
+**Tag optimization impact**: 88.7% smaller deltas (median) compared to sequential mode.
+
+### mdn/content (MDN Web Docs - Documentation Repository)
+
+| Algorithm         | Median Delta | Compression Ratio | Space Saved | Median Encode | Median Decode |
+|-------------------|--------------|-------------------|-------------|---------------|---------------|
+| **xpatch_tags**   | **23 bytes** | **0.0063**        | **99.4%**   | 104 µs        | 0 µs          |
+| xpatch_sequential | 25 bytes     | 0.0069            | 99.3%       | 10 µs         | 0 µs          |
+| vcdiff (xdelta3)  | 50 bytes     | 0.0169            | 98.3%       | 9 µs          | 2 µs          |
+| gdelta            | 26 bytes     | 0.0077            | 99.2%       | 0 µs          | 0 µs          |
+
+**Tag optimization impact**: 8.8% smaller deltas (median) compared to sequential mode.
+
+### Key Insights
+
+- **Code repositories benefit 10x more from tag optimization** (88.7% improvement) than documentation (8.8% improvement)
+- The median delta of **2 bytes** on tokio means many changes can be represented by just the header
+- Tag system averages 1.9 commits back for tokio (median: 2), showing frequent code reversion patterns
 
 See the [test_results](./test_results) directory for detailed logs and benchmark data.
 
@@ -185,7 +210,7 @@ pub fn encode(tag: usize, base_data: &[u8], new_data: &[u8], enable_zstd: bool) 
 
 Creates a delta that transforms `base_data` into `new_data`.
 
-- `tag`: User-defined metadata value
+- `tag`: User-defined metadata value (tags 0-15 use zero overhead)
 - `base_data`: The original data
 - `new_data`: The target data
 - `enable_zstd`: Enable zstd compression for complex changes (slower but better compression)
@@ -287,31 +312,51 @@ This is particularly effective when changes are reverted or when data has cyclic
 
 The repository includes comprehensive benchmark suites:
 
-### Synthetic Benchmarks
+### Quick Stress Tests
+
+Tests human-focused scenarios (code edits, documentation, config files):
 
 ```bash
-# Standard compression tests
-cargo bench --bench stress --features benchmark
-
-# Library comparison
-cargo bench --bench stress_compared --features benchmark
+cargo bench --bench stress
 ```
 
-### Real-World Git Benchmarks
+### Real-World Git Repository Benchmarks
+
+Test on actual git repositories with environment variable configuration:
 
 ```bash
-# Install xdelta3 (required for git benchmark comparisons)
-apt-get install xdelta3  # or: brew install xdelta on macOS
+# Use a preset repository
+XPATCH_PRESET=tokio cargo bench --bench git_real_world
 
-# Run benchmark on selected repositories
-cargo run --bin git_benchmark --features benchmark -- \
-    --repos git,neovim,tokio \
-    --max-commits 100 \
-    --threads 8
+# Test all files at HEAD
+XPATCH_PRESET=tokio XPATCH_ALL_FILES_HEAD=true cargo bench --bench git_real_world
+
+# Build cache for faster repeated runs
+XPATCH_PRESET=tokio XPATCH_BUILD_CACHE=true XPATCH_CACHE_DIR=./cache cargo bench --bench git_real_world
+
+# Use cache
+XPATCH_PRESET=tokio XPATCH_USE_CACHE=true XPATCH_CACHE_DIR=./cache cargo bench --bench git_real_world
+
+# Customize search depth and other options
+XPATCH_PRESET=tokio XPATCH_MAX_TAG_DEPTH=32 XPATCH_MAX_COMMITS=200 cargo bench --bench git_real_world
 ```
 
-Results are saved to the `benchmark_results` directory with timestamped CSV files. Benchmark scripts are included in the
-repository.
+**Available Environment Variables:**
+
+- `XPATCH_PRESET`: Repository preset (rust, neovim, tokio, git)
+- `XPATCH_REPO`: Custom repository URL
+- `XPATCH_MAX_COMMITS`: Maximum commits per file (default: 50, 0=all)
+- `XPATCH_MAX_TAG_DEPTH`: Tag search depth (default: 16)
+- `XPATCH_ALL_FILES_HEAD`: Test all files at HEAD
+- `XPATCH_ALL_FILES`: Test all files in history (slow)
+- `XPATCH_MAX_FILES`: Limit number of files
+- `XPATCH_PARALLEL_FILES`: Process files in parallel
+- `XPATCH_OUTPUT`: Output directory
+- `XPATCH_CACHE_DIR`: Cache directory
+- `XPATCH_BUILD_CACHE`: Build cache only
+- `XPATCH_USE_CACHE`: Use existing cache
+
+Results are saved to timestamped files in `benchmark_results/` with both Json and Markdown reports.
 
 ## Related Projects
 

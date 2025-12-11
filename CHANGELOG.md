@@ -7,6 +7,79 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2025-12-11
+
+### Added
+
+- **Enhanced CLI Tool** (`src/bin/cli.rs`):
+    - Memory usage warnings with system checks before processing large files
+    - Progress indicators for multistep operations
+    - Colored output with `owo-colors`
+    - Verification mode (`--verify`) to ensure delta correctness
+    - Better error messages with specific exit codes
+    - Force overwrite (`--force`) and quiet mode (`--quiet`) flags
+- **Comprehensive Real-World Benchmarking**:
+    - New `git_real_world` benchmark suite testing on actual git repositories
+    - Tested on **1.2 million real-world deltas** across 30,719 files
+    - Support for multiple algorithms: xpatch (sequential + tags), vcdiff, gdelta
+    - Parallel processing
+    - Hardware info collection in reports
+- **vcdiff Algorithm Support**: Added vcdiff (VCDIFF standard implementation) as benchmark comparison
+- **Cache System** for benchmark data: Extract git file versions once, reuse across runs
+- **Detailed Markdown Reports**: Auto-generated benchmark reports with statistics, rankings, and tag optimization
+  analysis
+
+### Changed
+
+- **Benchmark Infrastructure Completely Rewritten**:
+    - Moved from synthetic-only tests to real-world git repository analysis
+    - Environment variable configuration system replacing CLI arguments
+    - Support for repository presets (rust, neovim, tokio, git)
+    - File discovery modes: predefined files, all at HEAD, all in history
+    - Parallel file processing option
+- **Updated Dependencies**:
+    - `gdelta` upgraded from 0.1.1 to 0.2.1
+    - Added `vcdiff` 0.1.0 for benchmark comparisons
+    - Added `crossbeam` 0.8.4 for concurrent cache building
+- **Stress Benchmark Refocus**: Now tests "human-focused" scenarios (code edits, docs, configs, logs) instead of
+  synthetic data
+- **CLI Moved**: Binary moved from `src/bin/xpatch.rs` to `src/bin/cli.rs` with full rewrite
+- **Optimized `encode_remove`**: Now encodes length (`end - start`) instead of absolute `end` position, reducing bytes
+  needed for large file removals
+
+### Deprecated
+
+This release is not compatible with v0.1.0.
+
+### Performance
+
+Tested on **1,359,468 real-world git commit changes** across tokio (133,728 deltas) and mdn/content (1,225,740 deltas):
+
+**tokio (Rust async runtime, code repository):**
+
+- **xpatch with tags**: 2 bytes median, 0.0019 compression ratio (99.8% space saved)
+- **xpatch sequential**: 68 bytes median, 0.0165 ratio (98.4% saved)
+- vcdiff (xdelta3): 97 bytes median, 0.0276 ratio (97.2% saved)
+- gdelta: 69 bytes median, 0.0180 ratio (98.2% saved)
+- **Tag optimization impact**: 88.7% smaller deltas vs sequential mode (median)
+
+**mdn/content (MDN Web Docs, documentation repository):**
+
+- **xpatch with tags**: 23 bytes median, 0.0063 compression ratio (99.4% space saved)
+- **xpatch sequential**: 25 bytes median, 0.0069 ratio (99.3% saved)
+- vcdiff: 50 bytes median, 0.0169 ratio (98.3% saved)
+- gdelta: 26 bytes median, 0.0077 ratio (99.2% saved)
+- **Tag optimization impact**: 8.8% smaller deltas vs sequential mode (median)
+
+### Removed
+
+- **git_benchmark Binary**: Replaced by the new `git_real_world` benchmark infrastructure
+- **stress_compared Benchmark**: Removed in favor of focused human-scenario tests in main stress benchmark and gdelta's
+  comprehensive benchmark suite including xpatch
+- Old CLI at `src/bin/xpatch.rs` (replaced with enhanced version)
+
+[0.2.0]: https://github.com/xpatch-lib/xpatch/releases/tag/v0.2.0
+
 ## [0.1.0] - 2025-12-07
 
 ### Added
