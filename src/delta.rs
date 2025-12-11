@@ -626,7 +626,7 @@ fn decode_add(base: &[u8], delta: &[u8]) -> Result<Vec<u8>, &'static str> {
 #[inline]
 fn encode_remove(start: usize, end: usize) -> Vec<u8> {
     let mut encoded = encode_varint(start);
-    encoded.extend(encode_varint(end));
+    encoded.extend(encode_varint(end - start));
     encoded
 }
 
@@ -638,7 +638,8 @@ fn decode_remove(base: &[u8], delta: &[u8]) -> Result<Vec<u8>, &'static str> {
     }
 
     let (start, varint_len) = decode_varint(delta);
-    let (end, _) = decode_varint(&delta[varint_len..]);
+    let (distance, _) = decode_varint(&delta[varint_len..]);
+    let end = start + distance;
 
     if start > end || end > base.len() {
         return Err("Invalid deletion range");
