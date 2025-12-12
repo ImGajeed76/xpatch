@@ -7,6 +7,15 @@
 A high-performance delta compression library for Rust that automatically selects the optimal compression algorithm based
 on the type of change detected between data versions.
 
+## Demo
+
+**[🚀 Try the live demo →](https://github.com/imgajeed76/xpatch_demo_editor)**
+
+A lightning-fast markdown editor showcasing xpatch's compression and time-travel capabilities. Watch it achieve
+crazy space savings while scrubbing through document history like a video timeline.
+
+<https://github.com/imgajeed76/xpatch_demo_editor>
+
 ## Features
 
 - **Automatic Algorithm Selection**: Analyzes changes and chooses the best compression strategy
