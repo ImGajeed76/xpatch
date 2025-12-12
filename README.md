@@ -55,32 +55,6 @@ Add xpatch to your `Cargo.toml`:
 xpatch = "0.2.0"
 ```
 
-## License
-
-This project is dual-licensed under:
-
-### Option 1: AGPL-3.0-or-later (Free for Open Source)
-
-Free to use in open source projects that comply with the AGPL license.
-If you modify xpatch and distribute it (including as a web service),
-you must open-source your modifications under AGPL.
-
-### Option 2: Commercial License (For Proprietary Use)
-
-For companies that want to use xpatch in closed-source products,
-a commercial license is available.
-
-**To purchase a commercial license or request a quote:**
-Email: xpatch-commercial@alias.oseifert.ch
-
-### Contributor License Agreement
-
-All contributors must sign a CLA that grants us rights to relicense
-their contributions under both AGPL and commercial terms.
-
-See LICENSE-AGPL.txt for the full AGPL license text.
-See LICENSE-COMMERCIAL.txt for commercial license terms.
-
 ## Quick Start
 
 ```rust
@@ -361,6 +335,57 @@ Results are saved to timestamped files in `benchmark_results/` with both Json an
 ## Related Projects
 
 - [gdelta](https://github.com/ImGajeed76/gdelta) - General-purpose delta compression algorithm used by xpatch
+
+## License
+
+xpatch is dual-licensed: AGPL-3.0-or-later for open source, with a commercial option for proprietary use.
+
+### The Philosophy
+
+I'm a huge fan of open source. I also don't want massive corporations extracting value from community work without
+giving anything back. AGPL solves this - if you modify xpatch and distribute it (including running it as a service),
+those improvements stay open.
+
+That said, I'm not trying to build a licensing business here. This is about fairness, not revenue.
+
+### Do You Need a Commercial License?
+
+**Probably not if you're:**
+
+- Building open source software (AGPL is perfect)
+- A small team or indie developer
+- Experimenting or doing research
+- A startup figuring things out
+
+**Maybe if you're:**
+
+- A large company with AGPL restrictions
+- Integrating this into proprietary infrastructure at scale
+- Need legal certainty for closed-source use
+
+### How Commercial Licensing Works
+
+Email me at xpatch-commercial@alias.oseifert.ch and let's talk.
+
+Small businesses? Probably free - I just want to know who's using it and how.
+
+Larger companies? Yeah, I'll ask for something, but it'll be reasonable. You have the resources to support open source
+work, so let's make it fair.
+
+Would rather contribute code than pay? Even better. Help make xpatch better and we'll figure out the licensing stuff.
+
+I'm not interested in complex contracts or pricing games. Just don't be a massive corp that takes community work and
+gives nothing back. That's literally the only thing I'm trying to prevent.
+
+### Contributor License Agreement
+
+If you contribute code, you're granting us rights to use it under both AGPL and commercial terms. This sounds scarier
+than it is - it just means we can handle licensing requests without tracking down every contributor for permission.
+
+The AGPL version stays open forever. This just gives us flexibility to be reasonable with companies that need commercial
+licenses.
+
+See LICENSE-AGPL.txt for the full text, or LICENSE-COMMERCIAL.txt for commercial terms.
 
 ## Contributing
 
