@@ -1,0 +1,36 @@
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "xpatch-rs"
+version = "0.2.0"
+description = "High-performance delta compression library with automatic algorithm selection"
+authors = [{name = "ImGajeed76"}]
+license = {text = "AGPL-3.0-or-later"}
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+    "Programming Language :: Rust",
+    "Programming Language :: Python :: Implementation :: CPython",
+    "Programming Language :: Python :: Implementation :: PyPy",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
+    "Topic :: System :: Archiving :: Compression",
+]
+keywords = ["delta", "compression", "diff", "patch", "version-control"]
+
+[project.urls]
+Homepage = "https://github.com/ImGajeed76/xpatch"
+Repository = "https://github.com/ImGajeed76/xpatch"
+Documentation = "https://github.com/ImGajeed76/xpatch#readme"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "xpatch"

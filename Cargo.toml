@@ -1,37 +1,43 @@
-[package]
-name = "xpatch"
+[workspace]
+members = [
+    "crates/xpatch",
+    "crates/xpatch-python",
+    "crates/xpatch-node",
+]
+resolver = "2"
+
+[workspace.package]
 version = "0.2.0"
 edition = "2024"
 license = "AGPL-3.0-or-later"
-description = "High-performance delta compression library with automatic algorithm selection"
 repository = "https://github.com/ImGajeed76/xpatch"
 homepage = "https://github.com/ImGajeed76/xpatch"
-documentation = "https://docs.rs/xpatch"
-readme = "README.md"
-keywords = ["delta", "compression", "diff", "patch", "version-control"]
-categories = ["compression", "algorithms", "encoding"]
-exclude = [
-    "test_results/",
-    "benchmark_results/",
-    "benches/",
-    "*.log",
-    "*.csv",
-    "Cargo.toml.orig",
-    "src/bin/git_benchmark.rs"
-]
+authors = ["ImGajeed76"]
 
-[dependencies]
+[workspace.dependencies]
+# Core dependencies
 gdelta = "0.2.1"
 num_enum = "0.7.5"
 zstd = "0.13.3"
 
-# CLI
-anyhow = { version = "1.0.100", optional = true }
-clap = { version = "4.5.53", features = ["derive"], optional = true }
-owo-colors = {version = "4.2.3", optional = true}
-sysinfo = {version = "0.37.2", optional = true}
+# Internal workspace crates
+xpatch = { path = "crates/xpatch" }
 
-[dev-dependencies]
+# CLI dependencies
+anyhow = "1.0.100"
+clap = { version = "4.5.53", features = ["derive"] }
+owo-colors = "4.2.3"
+sysinfo = "0.37.2"
+
+# Python bindings
+pyo3 = { version = "0.27.2", features = ["extension-module"] }
+
+# Node.js bindings
+napi = { version = "2", default-features = false, features = ["napi4"] }
+napi-derive = "2"
+napi-build = "2"
+
+# Dev dependencies (for benchmarks and examples)
 criterion = { version = "0.8.0", features = ["html_reports"] }
 vcdiff = "0.1.0"
 serde = { version = "1.0.228", features = ["derive"] }
@@ -39,15 +45,12 @@ serde_json = "1.0.145"
 log = "0.4.29"
 chrono = "0.4.42"
 git2 = "0.20.3"
-anyhow = "1.0.100"
-clap = {version = "4.5.53", features = ["derive"]}
 indicatif = "0.18.3"
 rayon = "1.11.0"
 csv = "1.4.0"
 env_logger = "0.11.8"
 ctrlc = "3.5.1"
 num_cpus = "1.17.0"
-sysinfo = "0.37.2"
 crossbeam = "0.8.4"
 
 [profile.bench]
@@ -61,49 +64,3 @@ opt-level = 3
 lto = "fat"
 codegen-units = 1
 panic = "unwind"
-
-[features]
-default = []
-cli = [
-    "dep:anyhow",
-    "dep:clap",
-    "dep:sysinfo",
-    "dep:owo-colors"
-]
-vcdiff = []
-gdelta = []
-debug_all = [
-    "debug_delta_encode",
-    "debug_delta_token",
-    "debug_delta_analyze",
-    "debug_delta_compress",
-    "debug_delta_pattern",
-    "debug_delta_header",
-    "debug_tokenizer",
-]
-debug_delta_encode = []
-debug_delta_token = []
-debug_delta_analyze = []
-debug_delta_compress = []
-debug_delta_pattern = []
-debug_delta_header = []
-debug_tokenizer = []
-
-[[bench]]
-name = "stress"
-harness = false
-
-[[bench]]
-name = "git_real_world"
-harness = false
-
-[[bin]]
-name = "xpatch"
-path = "src/bin/cli.rs"
-required-features = ["cli"]
-
-[[example]]
-name = "basic"
-
-[[example]]
-name = "tags"

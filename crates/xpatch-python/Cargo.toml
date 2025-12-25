@@ -1,0 +1,16 @@
+[package]
+name = "xpatch-python"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Python bindings for the xpatch delta compression library"
+repository.workspace = true
+homepage.workspace = true
+
+[lib]
+name = "xpatch"
+crate-type = ["cdylib"]
+
+[dependencies]
+xpatch = { workspace = true }
+pyo3 = { workspace = true }

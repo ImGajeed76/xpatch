@@ -1,11 +1,12 @@
 # xpatch
 
 [![Crates.io](https://img.shields.io/crates/v/xpatch.svg)](https://crates.io/crates/xpatch)
+[![npm](https://img.shields.io/npm/v/xpatch-rs.svg)](https://www.npmjs.com/package/xpatch-rs)
+[![PyPI](https://img.shields.io/pypi/v/xpatch-rs.svg)](https://pypi.org/project/xpatch-rs/)
 [![Documentation](https://docs.rs/xpatch/badge.svg)](https://docs.rs/xpatch)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-A high-performance delta compression library for Rust that automatically selects the optimal compression algorithm based
-on the type of change detected between data versions.
+A high-performance delta compression library with automatic algorithm selection, available for **Rust**, **Python**, **Node.js**, and as a **CLI tool**.
 
 ## Demo
 
@@ -13,8 +14,6 @@ on the type of change detected between data versions.
 
 A lightning-fast markdown editor showcasing xpatch's compression and time-travel capabilities. Watch it achieve
 crazy space savings while scrubbing through document history like a video timeline.
-
-<https://github.com/imgajeed76/xpatch_demo_editor>
 
 ## Features
 
@@ -29,6 +28,111 @@ crazy space savings while scrubbing through document history like a video timeli
 - **Fast Performance**: 40-55 GB/s throughput for typical changes
 - **Optional zstd Compression**: Additional compression layer for complex changes
 - **Metadata Support**: Embed version tags with zero overhead for values 0-15
+- **Multi-language**: Native bindings for Rust, Python, and Node.js
+
+## Installation
+
+### Rust
+
+```toml
+[dependencies]
+xpatch = "0.2.0"
+```
+
+### Python
+
+```bash
+pip install xpatch-rs
+```
+
+### Node.js
+
+```bash
+npm install xpatch-rs
+```
+
+### CLI Tool
+
+```bash
+cargo install xpatch --features cli
+```
+
+## Quick Start
+
+### Rust
+
+```rust
+use xpatch::delta;
+
+fn main() {
+    let base = b"Hello, World!";
+    let new = b"Hello, Rust!";
+
+    // Create delta
+    let delta = delta::encode(0, base, new, true);
+
+    // Apply delta
+    let reconstructed = delta::decode(base, &delta).unwrap();
+    assert_eq!(reconstructed, new);
+
+    // Extract tag
+    let tag = delta::get_tag(&delta).unwrap();
+    println!("Compressed {} → {} bytes", new.len(), delta.len());
+}
+```
+
+### Python
+
+```python
+import xpatch
+
+base = b"Hello, World!"
+new = b"Hello, Python!"
+
+# Create delta
+delta = xpatch.encode(0, base, new)
+
+# Apply delta
+reconstructed = xpatch.decode(base, delta)
+assert reconstructed == new
+
+# Extract tag
+tag = xpatch.get_tag(delta)
+print(f"Compressed {len(new)} → {len(delta)} bytes")
+```
+
+### Node.js / TypeScript
+
+```javascript
+const xpatch = require('xpatch-rs');
+
+const base = Buffer.from('Hello, World!');
+const newData = Buffer.from('Hello, Node!');
+
+// Create delta
+const delta = xpatch.encode(0, base, newData);
+
+// Apply delta
+const reconstructed = xpatch.decode(base, delta);
+console.log(reconstructed.equals(newData)); // true
+
+// Extract tag
+const tag = xpatch.getTag(delta);
+console.log(`Compressed ${newData.length} → ${delta.length} bytes`);
+```
+
+### CLI
+
+```bash
+# Create a delta
+xpatch encode base.txt new.txt -o patch.xp
+
+# Apply a delta
+xpatch decode base.txt patch.xp -o restored.txt
+
+# Show delta info
+xpatch info patch.xp
+```
 
 ## Performance
 
@@ -55,84 +159,56 @@ Tested on real-world git repositories with 1.2+ million actual code changes. All
 Most real-world changes compress extremely well due to localized edits. See test_results for detailed benchmark data
 across different file types and change patterns.
 
-## Installation
+## Repository Structure
 
-Add xpatch to your `Cargo.toml`:
-
-```toml
-[dependencies]
-xpatch = "0.2.0"
+```
+xpatch/
+├── Cargo.toml              # Workspace root
+├── crates/
+│   ├── xpatch/            # Core Rust library with CLI
+│   ├── xpatch-python/     # Python bindings (PyO3 + Maturin)
+│   └── xpatch-node/       # Node.js bindings (NAPI-RS)
+└── README.md
 ```
 
-## Quick Start
+## Development
 
-```rust
-use xpatch::delta;
+### Building All Bindings
 
-fn main() {
-    let base_data = b"Hello, world!";
-    let new_data = b"Hello, beautiful world!";
-
-    // Encode the difference
-    let tag = 0; // User-defined metadata
-    let enable_zstd = true;
-    let delta = delta::encode(tag, base_data, new_data, enable_zstd);
-
-    println!("Original size: {} bytes", base_data.len());
-    println!("Delta size: {} bytes", delta.len());
-    println!("Compression ratio: {:.2}%",
-             (1.0 - delta.len() as f64 / new_data.len() as f64) * 100.0);
-
-    // Decode to reconstruct new_data
-    let reconstructed = delta::decode(base_data, &delta[..]).unwrap();
-    assert_eq!(reconstructed, new_data);
-
-    // Extract metadata without decoding
-    let extracted_tag = delta::get_tag(&delta[..]).unwrap();
-    assert_eq!(extracted_tag, tag);
-}
-```
-
-### Running the Examples
-
-Try the included examples to see xpatch in action:
+#### Core Library & CLI
 
 ```bash
-# Basic compression example
-cargo run --example basic
+cargo build --all
+cargo test -p xpatch
+```
 
-# Tags example demonstrating metadata and version optimization
+#### Python Bindings
+
+```bash
+cd crates/xpatch-python
+pip install maturin
+maturin develop
+```
+
+#### Node.js Bindings
+
+```bash
+cd crates/xpatch-node
+npm install
+npm run build
+```
+
+### Running Examples
+
+```bash
+# Rust examples
+cargo run --example basic
 cargo run --example tags
 
-# Expected output will show compression ratios and delta sizes
+# CLI examples
+cargo run -p xpatch --features cli -- encode base.txt new.txt -o patch.xp
+cargo run -p xpatch --features cli -- info patch.xp
 ```
-
-## Command-Line Tool
-
-xpatch includes a convenient CLI tool for working with deltas:
-
-```bash
-# Install with CLI support
-cargo install xpatch --features cli
-
-# Or build from source
-cargo build --release --features cli
-```
-
-### Basic Usage
-
-```bash
-# Create a delta
-xpatch encode base.txt new.txt -o patch.xp
-
-# Apply a delta
-xpatch decode base.txt patch.xp -o restored.txt
-
-# Show delta info
-xpatch info patch.xp
-```
-
-See `src/bin/cli/README.md` for detailed CLI documentation.
 
 ## Benchmark Results
 
@@ -169,7 +245,7 @@ Tested on **1,359,468 real-world Git commit changes** across two repositories (t
 - The median delta of **2 bytes** on tokio means many changes can be represented by just the header
 - Tag system averages 1.9 commits back for tokio (median: 2), showing frequent code reversion patterns
 
-See the [test_results](./test_results) directory for detailed logs and benchmark data.
+See the [test_results](./crates/xpatch/test_results) directory for detailed logs and benchmark data.
 
 ## How It Works
 
@@ -187,8 +263,19 @@ algorithm, with optional zstd compression.
 
 ### Encoding
 
+**Rust:**
 ```rust
 pub fn encode(tag: usize, base_data: &[u8], new_data: &[u8], enable_zstd: bool) -> Vec<u8>
+```
+
+**Python:**
+```python
+def encode(tag: int, base_data: bytes, new_data: bytes, enable_zstd: bool = True) -> bytes
+```
+
+**Node.js:**
+```typescript
+function encode(tag: number, baseData: Buffer, newData: Buffer, enableZstd?: boolean): Buffer
 ```
 
 Creates a delta that transforms `base_data` into `new_data`.
@@ -198,12 +285,23 @@ Creates a delta that transforms `base_data` into `new_data`.
 - `new_data`: The target data
 - `enable_zstd`: Enable zstd compression for complex changes (slower but better compression)
 
-**Returns**: Compact delta as a byte vector
+**Returns**: Compact delta as bytes
 
 ### Decoding
 
+**Rust:**
 ```rust
 pub fn decode(base_data: &[u8], delta: &[u8]) -> Result<Vec<u8>, &'static str>
+```
+
+**Python:**
+```python
+def decode(base_data: bytes, delta: bytes) -> bytes  # Raises ValueError on error
+```
+
+**Node.js:**
+```typescript
+function decode(baseData: Buffer, delta: Buffer): Buffer  // Throws Error on failure
 ```
 
 Applies a delta to reconstruct the new data.
@@ -211,17 +309,28 @@ Applies a delta to reconstruct the new data.
 - `base_data`: The original data the delta was created from
 - `delta`: The encoded delta
 
-**Returns**: Reconstructed data or error message
+**Returns**: Reconstructed data or error
 
 ### Metadata Extraction
 
+**Rust:**
 ```rust
 pub fn get_tag(delta: &[u8]) -> Result<usize, &'static str>
 ```
 
+**Python:**
+```python
+def get_tag(delta: bytes) -> int  # Raises ValueError on error
+```
+
+**Node.js:**
+```typescript
+function getTag(delta: Buffer): number  // Throws Error on failure
+```
+
 Extracts the tag value from a delta without decoding it.
 
-**Returns**: Tag value or error message
+**Returns**: Tag value or error
 
 ## Understanding Tags
 
@@ -339,11 +448,12 @@ XPATCH_PRESET=tokio XPATCH_MAX_TAG_DEPTH=32 XPATCH_MAX_COMMITS=200 cargo bench -
 - `XPATCH_BUILD_CACHE`: Build cache only
 - `XPATCH_USE_CACHE`: Use existing cache
 
-Results are saved to timestamped files in `benchmark_results/` with both Json and Markdown reports.
+Results are saved to timestamped files in `benchmark_results/` with both JSON and Markdown reports.
 
 ## Related Projects
 
 - [gdelta](https://github.com/ImGajeed76/gdelta) - General-purpose delta compression algorithm used by xpatch
+- [xpatch Demo Editor](https://github.com/imgajeed76/xpatch_demo_editor) - Live demo showcasing xpatch capabilities
 
 ## License
 

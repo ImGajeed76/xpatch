@@ -1,0 +1,60 @@
+{
+  "name": "xpatch-rs",
+  "version": "0.2.0",
+  "description": "High-performance delta compression library with automatic algorithm selection",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ImGajeed76/xpatch.git"
+  },
+  "homepage": "https://github.com/ImGajeed76/xpatch",
+  "license": "AGPL-3.0-or-later",
+  "keywords": [
+    "delta",
+    "compression",
+    "diff",
+    "patch",
+    "version-control",
+    "napi-rs",
+    "rust"
+  ],
+  "files": [
+    "index.js",
+    "index.d.ts",
+    "*.node"
+  ],
+  "napi": {
+    "name": "xpatch",
+    "triples": {
+      "defaults": true,
+      "additional": [
+        "x86_64-unknown-linux-musl",
+        "aarch64-unknown-linux-gnu",
+        "aarch64-unknown-linux-musl",
+        "aarch64-apple-darwin",
+        "aarch64-pc-windows-msvc"
+      ]
+    }
+  },
+  "engines": {
+    "node": ">= 10"
+  },
+  "scripts": {
+    "artifacts": "napi artifacts",
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "prepublishOnly": "napi prepublish -t npm",
+    "test": "node test.js",
+    "universal": "napi universal",
+    "version": "napi version"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^2.18.4"
+  },
+  "author": "ImGajeed76",
+  "funding": {
+    "type": "individual",
+    "url": "https://github.com/ImGajeed76/xpatch"
+  }
+}

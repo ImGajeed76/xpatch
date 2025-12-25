@@ -1,0 +1,19 @@
+[package]
+name = "xpatch-node"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "Node.js bindings for the xpatch delta compression library"
+repository.workspace = true
+homepage.workspace = true
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+xpatch = { workspace = true }
+napi = { workspace = true }
+napi-derive = { workspace = true }
+
+[build-dependencies]
+napi-build = { workspace = true }

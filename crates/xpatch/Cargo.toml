@@ -1,0 +1,97 @@
+[package]
+name = "xpatch"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "High-performance delta compression library with automatic algorithm selection"
+repository.workspace = true
+homepage.workspace = true
+documentation = "https://docs.rs/xpatch"
+readme = "README.md"
+keywords = ["delta", "compression", "diff", "patch", "version-control"]
+categories = ["compression", "algorithms", "encoding"]
+exclude = [
+    "test_results/",
+    "benchmark_results/",
+    "benchmark_cache/",
+    "benches/",
+    "*.log",
+    "*.csv",
+    "Cargo.toml.orig",
+]
+
+[dependencies]
+gdelta.workspace = true
+num_enum.workspace = true
+zstd.workspace = true
+
+# CLI dependencies (optional)
+anyhow = { workspace = true, optional = true }
+clap = { workspace = true, optional = true }
+owo-colors = { workspace = true, optional = true }
+sysinfo = { workspace = true, optional = true }
+
+[dev-dependencies]
+criterion.workspace = true
+vcdiff.workspace = true
+serde.workspace = true
+serde_json.workspace = true
+log.workspace = true
+chrono.workspace = true
+git2.workspace = true
+anyhow.workspace = true
+clap.workspace = true
+indicatif.workspace = true
+rayon.workspace = true
+csv.workspace = true
+env_logger.workspace = true
+ctrlc.workspace = true
+num_cpus.workspace = true
+sysinfo.workspace = true
+crossbeam.workspace = true
+
+[features]
+default = []
+cli = [
+    "dep:anyhow",
+    "dep:clap",
+    "dep:owo-colors",
+    "dep:sysinfo",
+]
+vcdiff = []
+gdelta = []
+debug_all = [
+    "debug_delta_encode",
+    "debug_delta_token",
+    "debug_delta_analyze",
+    "debug_delta_compress",
+    "debug_delta_pattern",
+    "debug_delta_header",
+    "debug_tokenizer",
+]
+debug_delta_encode = []
+debug_delta_token = []
+debug_delta_analyze = []
+debug_delta_compress = []
+debug_delta_pattern = []
+debug_delta_header = []
+debug_tokenizer = []
+
+[[bench]]
+name = "stress"
+harness = false
+
+[[bench]]
+name = "git_real_world"
+harness = false
+
+[[bin]]
+name = "xpatch"
+path = "src/bin/cli.rs"
+required-features = ["cli"]
+
+[[example]]
+name = "basic"
+
+[[example]]
+name = "tags"
