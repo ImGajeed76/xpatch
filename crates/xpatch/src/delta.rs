@@ -28,6 +28,8 @@
 //! - Repetitive character patterns (RepeatChars)
 //! - Repetitive token patterns (RepeatTokens)
 //! - General-purpose delta compression (GDelta)
+//! - Zstd-compressed character insertion (CharsZstd)
+//! - Zstd-compressed general delta (GDeltaZstd)
 
 use crate::debug::{
     debug_delta_analyze, debug_delta_compress, debug_delta_encode, debug_delta_header,
@@ -55,6 +57,8 @@ pub enum Algorithm {
     RepeatTokens = 5,
     /// General-purpose delta compression with zstd (GDeltaZstd)
     GDeltaZstd = 6,
+    /// Character insertion with zstd compression (CharsZstd)
+    CharsZstd = 7,
 }
 
 /// Encodes the difference between base data and new data as a compact delta.
@@ -112,6 +116,16 @@ pub fn encode(tag: usize, base_data: &[u8], new_data: &[u8], enable_zstd: bool) 
                     best_data = repeat_token_data;
                     debug_delta_compress!("  {:?}: {} bytes", best_algo, best_data.len());
                 }
+            }
+
+            // Try zstd compression (CharsZstd) on the raw data
+            if enable_zstd
+                && let Ok(chars_zstd_data) = encode_chars_zstd(position, &data[..])
+                && chars_zstd_data.len() < best_data.len()
+            {
+                best_algo = Algorithm::CharsZstd;
+                best_data = chars_zstd_data;
+                debug_delta_compress!("  {:?}: {} bytes", best_algo, best_data.len());
             }
 
             (best_algo, best_data)
@@ -245,6 +259,10 @@ pub fn decode(base_data: &[u8], delta: &[u8]) -> Result<Vec<u8>, &'static str> {
                 Err(_) => return Err("Error decoding gdelta"),
             }
         }
+        Algorithm::CharsZstd => match decode_chars_zstd(base_data, delta) {
+            Ok(d) => d,
+            Err(_) => return Err("Error while decoding CharsZstd"),
+        },
     };
 
     Ok(decoded)
@@ -619,6 +637,58 @@ fn decode_add(base: &[u8], delta: &[u8]) -> Result<Vec<u8>, &'static str> {
 }
 
 // ============================================================================
+// CHARSZSTD ALGORITHM - Character insertion with zstd compression
+// ============================================================================
+
+/// Encodes a continuous insertion of characters with zstd compression.
+fn encode_chars_zstd(position: usize, data: &[u8]) -> Result<Vec<u8>, String> {
+    // Compress the data with zstd
+    let compressed = match zstd::encode_all(data, 3) {
+        Ok(c) => c,
+        Err(e) => return Err(format!("zstd compression failed: {}", e)),
+    };
+
+    // Build encoded format: [position][compressed_data]
+    let mut encoded = encode_varint(position);
+    encoded.extend_from_slice(&compressed[..]);
+
+    Ok(encoded)
+}
+
+/// Decodes and applies a zstd-compressed character insertion (CharsZstd) to the base data.
+fn decode_chars_zstd(base: &[u8], delta: &[u8]) -> Result<Vec<u8>, String> {
+    if delta.is_empty() {
+        return Err("Empty chars zstd delta".to_string());
+    }
+
+    // Decode position
+    let (position, varint_len) = decode_varint(delta);
+
+    if position > base.len() {
+        return Err(format!(
+            "Insert position {} out of bounds (base len: {})",
+            position,
+            base.len()
+        ));
+    }
+
+    // Decompress the data
+    let compressed_data = &delta[varint_len..];
+    let bytes_to_insert = match zstd::decode_all(compressed_data) {
+        Ok(d) => d,
+        Err(e) => return Err(format!("zstd decompression failed: {}", e)),
+    };
+
+    // Build result with insertion
+    let mut result = Vec::with_capacity(base.len() + bytes_to_insert.len());
+    result.extend_from_slice(&base[..position]);
+    result.extend_from_slice(&bytes_to_insert);
+    result.extend_from_slice(&base[position..]);
+
+    Ok(result)
+}
+
+// ============================================================================
 // REMOVE ALGORITHM - Continuous byte removal
 // ============================================================================
 
@@ -969,6 +1039,7 @@ mod tests {
                 Algorithm::RepeatTokens,
                 Algorithm::GDelta,
                 Algorithm::GDeltaZstd,
+                Algorithm::CharsZstd,
             ] {
                 let header = encode_header(algo, tag);
                 assert!(
@@ -995,6 +1066,7 @@ mod tests {
             Algorithm::RepeatChars,
             Algorithm::RepeatTokens,
             Algorithm::GDeltaZstd,
+            Algorithm::CharsZstd,
         ];
 
         for algo in algorithms {
@@ -1609,5 +1681,55 @@ mod tests {
             assert_eq!(&decoded[..], &new[..]);
             assert_eq!(extracted_tag, tag);
         }
+    }
+
+    // ========================================================================
+    // CHARSZSTD ALGORITHM TESTS
+    // ========================================================================
+
+    #[test]
+    fn test_chars_zstd_large_addition() {
+        // Test CharsZstd with a large text that should compress well
+        let base = b"";
+        let large_text = b"Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(100);
+        let tag = 0;
+
+        // Encode with zstd enabled
+        let delta = encode(tag, base, &large_text[..], true);
+        let decoded = decode(base, &delta[..]).unwrap();
+
+        assert_eq!(&decoded[..], &large_text[..]);
+    }
+
+    #[test]
+    fn test_chars_zstd_middle_insertion() {
+        // Test CharsZstd with insertion in the middle
+        let base = b"start end";
+        let large_text = b"The quick brown fox jumps over the lazy dog. ".repeat(50);
+        let mut new = b"start ".to_vec();
+        new.extend_from_slice(&large_text[..]);
+        new.extend_from_slice(b"end");
+        let tag = 0;
+
+        // Encode with zstd enabled
+        let delta = encode(tag, base, &new[..], true);
+        let decoded = decode(base, &delta[..]).unwrap();
+
+        assert_eq!(&decoded[..], &new[..]);
+    }
+
+    #[test]
+    fn test_chars_zstd_disabled() {
+        // Test that CharsZstd is not used when zstd is disabled
+        let base = b"";
+        let large_text = b"Lorem ipsum dolor sit amet. ".repeat(100);
+        let tag = 0;
+
+        // Encode with zstd disabled
+        let delta = encode(tag, base, &large_text[..], false);
+        let (algo, _, _) = decode_header(&delta[..]).unwrap();
+
+        // Should not use CharsZstd when disabled
+        assert_ne!(algo, Algorithm::CharsZstd);
     }
 }
