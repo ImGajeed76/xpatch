@@ -1,6 +1,6 @@
 {
   "name": "xpatch-rs",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "High-performance delta compression library with automatic algorithm selection",
   "license": "AGPL-3.0-or-later",
   "author": "ImGajeed76",

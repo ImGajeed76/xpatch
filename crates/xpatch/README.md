@@ -19,7 +19,7 @@ A high-performance delta compression library with automatic algorithm selection.
 
 ```toml
 [dependencies]
-xpatch = "0.3.0"
+xpatch = "0.3.1"
 ```
 
 **Requirements:**

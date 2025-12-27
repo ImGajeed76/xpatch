@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.1] - 2025-12-27
+
+### Added
+
+- **Type stubs (.pyi)** for Python bindings to provide better IDE IntelliSense and autocomplete
+
+[0.3.1]: https://github.com/ImGajeed76/xpatch/releases/tag/v0.3.1
+
 ## [0.3.0] - 2025-12-27
 
 ### Added

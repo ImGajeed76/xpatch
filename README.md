@@ -36,7 +36,7 @@ crazy space savings while scrubbing through document history like a video timeli
 
 ```toml
 [dependencies]
-xpatch = "0.3.0"
+xpatch = "0.3.1"
 ```
 
 **Requirements:**
