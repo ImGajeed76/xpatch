@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- **C/C++ Bindings** (`crates/xpatch-c/`):
+    - FFI wrapper with 6 core functions (encode, decode, get_tag, free_buffer, free_error, version)
+    - Auto-generated header file via cbindgen with comprehensive documentation
+    - 16 comprehensive unit tests covering memory safety, threading, edge cases, and error handling
+    - Input validation on all FFI functions to prevent undefined behavior
+    - Distribution package (library, header, README) in `dist/` directory
+    - Full axogen integration (`build c`, `test c`, `example --lang=c`)
+    - Complete documentation with API reference, best practices, and troubleshooting
+    - C and C++ usage examples with Makefile
+    - Enables Go and other language bindings through C FFI layer
+- **Version Compatibility Documentation**: Added version compatibility section in README clarifying that delta format is stable from v0.3.0 onwards
+
 ## [0.3.1] - 2025-12-27
 
 ### Added
