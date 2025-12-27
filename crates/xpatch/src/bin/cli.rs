@@ -198,6 +198,7 @@ fn main() {
 // ============================================================================
 
 /// Handle the encode subcommand
+#[allow(clippy::too_many_arguments)]
 fn handle_encode(
     base_path: &Path,
     new_path: &Path,
