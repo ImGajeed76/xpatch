@@ -17,6 +17,13 @@ export const cleanCommand = cmd({
         }
 
         console.log();
+        logger.divider("C/C++");
+        logger.info("Cleaning C/C++ build artifacts");
+        await liveExec("rm -rf crates/xpatch-c/dist");
+        await liveExec("rm -f crates/xpatch-c/examples/basic");
+        await liveExec("rm -f crates/xpatch-c/examples/*.o");
+
+        console.log();
         logger.divider("Python");
         logger.info("Cleaning Python build artifacts");
         await liveExec("rm -rf crates/xpatch-python/target");

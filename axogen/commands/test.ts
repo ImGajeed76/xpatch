@@ -70,6 +70,19 @@ async function testNode(): Promise<void> {
     logger.success("Node.js tests passed");
 }
 
+async function testC(): Promise<void> {
+    const cargo = await detectTool("Cargo", "cargo");
+    if (!cargo.installed) {
+        logger.error("Cargo not found");
+        logger.info("Install from: https://rustup.rs/");
+        process.exit(1);
+    }
+
+    logger.start("Running C bindings tests");
+    await liveExec("cargo test -p xpatch-c");
+    logger.success("C bindings tests passed");
+}
+
 export const testCommands = group({
     help: "Test commands for all components",
     commands: {
@@ -94,6 +107,13 @@ export const testCommands = group({
             },
         }),
 
+        c: cmd({
+            help: "Run C bindings tests",
+            exec: async () => {
+                await testC();
+            },
+        }),
+
         all: cmd({
             help: "Run all tests",
             exec: async () => {
@@ -101,6 +121,10 @@ export const testCommands = group({
 
                 logger.divider("Rust");
                 await testRust();
+
+                console.log();
+                logger.divider("C Bindings");
+                await testC();
 
                 console.log();
                 logger.divider("Python");

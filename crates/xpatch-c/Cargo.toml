@@ -1,0 +1,18 @@
+[package]
+name = "xpatch-c"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+description = "C/C++ bindings for the xpatch delta compression library"
+repository.workspace = true
+homepage.workspace = true
+
+[lib]
+name = "xpatch_c"
+crate-type = ["cdylib", "staticlib"]
+
+[dependencies]
+xpatch = { workspace = true }
+
+[build-dependencies]
+cbindgen = "0.29"

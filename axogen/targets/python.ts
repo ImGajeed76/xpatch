@@ -15,6 +15,5 @@ export const pythonTarget = template({
         repository: metadata.repository,
         keywords: metadata.keywords,
         pythonClassifiers: metadata.pythonClassifiers,
-    },
-    generate_meta: true
+    }
 });

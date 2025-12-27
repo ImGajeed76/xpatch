@@ -6,7 +6,7 @@
 [![Documentation](https://docs.rs/xpatch/badge.svg)](https://docs.rs/xpatch)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-A high-performance delta compression library with automatic algorithm selection, available for **Rust**, **Python**, **Node.js**, and as a **CLI tool**.
+A high-performance delta compression library with automatic algorithm selection, available for **Rust**, **C/C++**, **Python**, **Node.js**, and as a **CLI tool**.
 
 ## Demo
 
@@ -28,7 +28,7 @@ crazy space savings while scrubbing through document history like a video timeli
 - **Fast Performance**: 40-55 GB/s throughput for typical changes
 - **Optional zstd Compression**: Additional compression layer for complex changes
 - **Metadata Support**: Embed version tags with zero overhead for values 0-15
-- **Multi-language**: Native bindings for Rust, Python, and Node.js
+- **Multi-language**: Native bindings for Rust, C/C++, Python, and Node.js
 
 ## Installation
 
@@ -41,6 +41,25 @@ xpatch = "0.3.1"
 
 **Requirements:**
 - Rust 1.92.0+ (for Rust edition 2024 support)
+
+### C/C++
+
+```bash
+# Build the library (using axogen)
+axogen run build c
+
+# Or manually with cargo
+cd crates/xpatch-c && cargo build --release
+
+# Build and test the example
+axogen run build c --example
+```
+
+The build produces:
+- **Library**: `target/release/libxpatch_c.{so,dylib,dll}`
+- **Header**: `crates/xpatch-c/xpatch.h`
+
+See [crates/xpatch-c/README.md](crates/xpatch-c/README.md) for usage examples and API reference.
 
 ### Python
 
@@ -81,6 +100,41 @@ fn main() {
     // Extract tag
     let tag = delta::get_tag(&delta).unwrap();
     println!("Compressed {} → {} bytes", new.len(), delta.len());
+}
+```
+
+### C/C++
+
+```c
+#include <stdio.h>
+#include <string.h>
+#include "xpatch.h"
+
+int main() {
+    const char* base = "Hello, World!";
+    const char* new = "Hello, C!";
+
+    // Encode
+    struct xpatch_XPatchBuffer delta = xpatch_encode(
+        0, (const uint8_t*)base, strlen(base),
+        (const uint8_t*)new, strlen(new), true
+    );
+
+    printf("Compressed %zu → %zu bytes\n", strlen(new), delta.len);
+
+    // Decode
+    struct xpatch_XPatchResult result = xpatch_decode(
+        (const uint8_t*)base, strlen(base),
+        delta.data, delta.len
+    );
+
+    if (result.error_message == NULL) {
+        printf("Success!\n");
+        xpatch_free_buffer(result.buffer);
+    }
+
+    xpatch_free_buffer(delta);
+    return 0;
 }
 ```
 
@@ -169,6 +223,7 @@ xpatch/
 ├── Cargo.toml              # Workspace root
 ├── crates/
 │   ├── xpatch/            # Core Rust library with CLI
+│   ├── xpatch-c/          # C/C++ bindings (cbindgen + FFI)
 │   ├── xpatch-python/     # Python bindings (PyO3 + Maturin)
 │   └── xpatch-node/       # Node.js bindings (NAPI-RS)
 └── README.md
@@ -193,6 +248,7 @@ axogen run setup
 ```bash
 # Build components
 axogen run build rust          # Core Rust library
+axogen run build c             # C/C++ bindings
 axogen run build python        # Python bindings
 axogen run build node          # Node.js bindings
 axogen run build all           # Everything
@@ -365,6 +421,25 @@ function getTag(delta: Buffer): number  // Throws Error on failure
 Extracts the tag value from a delta without decoding it.
 
 **Returns**: Tag value or error
+
+## Version Compatibility
+
+**Important**: Always use the **same version of xpatch** for both encoding and decoding deltas.
+
+- **v0.3.0 and later**: Delta format is stable. Deltas created with any v0.3.0+ version can be decoded with any other v0.3.0+ version.
+- **Earlier versions**: Format may differ between versions. Use the exact same version for encoding and decoding.
+
+**Cross-language compatibility**: When using the same version, you can encode a delta in one language binding (e.g., Python) and decode it in another (e.g., Rust or Node.js). All language bindings use the same underlying format.
+
+```python
+# Example: Encode in Python
+delta = xpatch.encode(0, base, new_data)  # Python v0.3.1
+```
+
+```javascript
+// Decode in Node.js (same version)
+const result = xpatch.decode(base, delta);  // Node.js v0.3.1 - works!
+```
 
 ## Understanding Tags
 

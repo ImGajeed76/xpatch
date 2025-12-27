@@ -17,3 +17,8 @@ bun.lock
 
 # Axogen
 .axogen/
+
+# C bindings
+crates/xpatch-c/dist/
+crates/xpatch-c/examples/basic
+crates/xpatch-c/xpatch.h

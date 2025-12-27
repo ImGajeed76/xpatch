@@ -87,6 +87,65 @@ async function buildNode(release: boolean): Promise<void> {
     logger.success("Node.js build complete");
 }
 
+async function buildC(release: boolean, example: boolean = false): Promise<void> {
+    const cargo = await detectTool("Cargo", "cargo");
+    if (!cargo.installed) {
+        logger.error("Cargo not found");
+        logger.info("Install from: https://rustup.rs/");
+        process.exit(1);
+    }
+
+    logger.start("Building C/C++ bindings");
+
+    const flags = release ? "--release" : "";
+    await liveExec(`cd crates/xpatch-c && cargo build ${flags}`);
+
+    logger.success("C/C++ build complete");
+
+    // Create distribution directory with everything needed
+    const distDir = "crates/xpatch-c/dist";
+    const libDir = release ? "target/release" : "target/debug";
+
+    logger.start("Creating distribution package");
+    await liveExec(`mkdir -p ${distDir}`);
+
+    // Copy library (platform-specific)
+    const platform = process.platform;
+    let libExt = "so";
+    if (platform === "darwin") libExt = "dylib";
+    else if (platform === "win32") libExt = "dll";
+
+    await liveExec(`cp -f ${libDir}/libxpatch_c.${libExt} ${distDir}/ || true`);
+
+    // Copy header
+    await liveExec(`cp -f crates/xpatch-c/xpatch.h ${distDir}/`);
+
+    // Copy README
+    await liveExec(`cp -f crates/xpatch-c/README.md ${distDir}/`);
+
+    logger.success("Distribution package created");
+    logger.info(`📦 Package location: ${distDir}/`);
+    logger.info(`   ├── libxpatch_c.${libExt}`);
+    logger.info(`   ├── xpatch.h`);
+    logger.info(`   └── README.md`);
+
+    if (example) {
+        const gcc = await detectTool("GCC", "gcc");
+        const clang = await detectTool("Clang", "clang");
+
+        if (!gcc.installed && !clang.installed) {
+            logger.warn("Neither GCC nor Clang found - skipping example build");
+            logger.info("Install a C compiler to build examples");
+            return;
+        }
+
+        logger.start("Building C example");
+        await liveExec(`cd crates/xpatch-c/examples && make clean && make`);
+        logger.success("C example built successfully");
+        logger.info("Run with: cd crates/xpatch-c/examples && ./basic");
+    }
+}
+
 export const buildCommands = group({
     help: "Build commands for all components",
     commands: {
@@ -121,8 +180,19 @@ export const buildCommands = group({
             },
         }),
 
+        c: cmd({
+            help: "Build C/C++ bindings",
+            options: {
+                release: z.boolean().default(true).describe("Build in release mode"),
+                example: z.boolean().default(false).describe("Also build and run the example"),
+            },
+            exec: async (ctx) => {
+                await buildC(ctx.options.release, ctx.options.example);
+            },
+        }),
+
         all: cmd({
-            help: "Build all components (Rust, Python, Node.js)",
+            help: "Build all components (Rust, C/C++, Python, Node.js)",
             options: {
                 release: z.boolean().default(false).describe("Build in release mode"),
             },
@@ -131,6 +201,10 @@ export const buildCommands = group({
 
                 logger.divider("Rust");
                 await buildRust(ctx.options.release, false);
+
+                console.log();
+                logger.divider("C/C++");
+                await buildC(ctx.options.release, false);
 
                 console.log();
                 logger.divider("Python");

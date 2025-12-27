@@ -7,6 +7,49 @@ import { askYesNo } from "../utils/prompts.ts";
 export const localCommands = group({
     help: "Prepare packages for local testing in other projects",
     commands: {
+        c: cmd({
+            help: "Prepare C/C++ bindings for local use",
+            exec: async () => {
+                const cPath = resolve(process.cwd(), "crates/xpatch-c/dist");
+
+                logger.header("Preparing C/C++ Bindings for Local Use");
+                console.log();
+
+                logger.start("Building C/C++ bindings");
+                await liveExec("cd crates/xpatch-c && cargo build --release");
+
+                // Create dist directory
+                await liveExec("mkdir -p crates/xpatch-c/dist");
+
+                // Copy library
+                const platform = process.platform;
+                let libExt = "so";
+                if (platform === "darwin") libExt = "dylib";
+                else if (platform === "win32") libExt = "dll";
+
+                await liveExec(`cp -f target/release/libxpatch_c.${libExt} crates/xpatch-c/dist/`);
+                await liveExec(`cp -f crates/xpatch-c/xpatch.h crates/xpatch-c/dist/`);
+                await liveExec(`cp -f crates/xpatch-c/README.md crates/xpatch-c/dist/`);
+
+                logger.success("C/C++ bindings prepared");
+                console.log();
+
+                logger.header("Ready for Local Use");
+                console.log();
+                logger.info("Package contents:");
+                console.log();
+                logger.logF(`<primary>${cPath}/</primary>`);
+                logger.logF(`<primary>  ├── libxpatch_c.${libExt}</primary>`);
+                logger.logF(`<primary>  ├── xpatch.h</primary>`);
+                logger.logF(`<primary>  └── README.md</primary>`);
+                console.log();
+                logger.info("To use in your C/C++ project:");
+                console.log();
+                logger.logF(`<primary>gcc -o myapp myapp.c -I${cPath} -L${cPath} -lxpatch_c</primary>`);
+                console.log();
+            },
+        }),
+
         rust: cmd({
             help: "Prepare Rust library for local use",
             exec: async () => {

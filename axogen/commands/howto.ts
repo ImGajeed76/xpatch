@@ -8,7 +8,7 @@ const howtos = {
         console.log();
         logger.info("Common Commands:");
         logger.bullet("axogen run setup              Set up development environment", 1);
-        logger.bullet("axogen run build [target]     Build components (rust|python|node|all)", 1);
+        logger.bullet("axogen run build [target]     Build components (rust|c|python|node|all)", 1);
         logger.bullet("axogen run test [target]      Run tests", 1);
         logger.bullet("axogen run example <name>     Run an example", 1);
         logger.bullet("axogen run clean              Clean build artifacts", 1);
@@ -31,6 +31,11 @@ const howtos = {
         logger.bullet("axogen run build rust --release    Release build", 1);
         logger.bullet("axogen run build rust --cli        With CLI features", 1);
         console.log();
+        logger.info("C/C++ Bindings:");
+        logger.bullet("axogen run build c                 Builds + creates dist package", 1);
+        logger.bullet("axogen run build c --example       Also builds examples", 1);
+        logger.bullet("cd crates/xpatch-c && cargo build --release", 1);
+        console.log();
         logger.info("Python Bindings:");
         logger.bullet("axogen run build python            Uses maturin develop", 1);
         logger.bullet("cd crates/xpatch-python && maturin develop", 1);
@@ -52,11 +57,13 @@ const howtos = {
         console.log();
         logger.info("Individual Components:");
         logger.bullet("axogen run test rust               Rust unit tests", 1);
+        logger.bullet("axogen run test c                  C bindings tests", 1);
         logger.bullet("axogen run test python             Python binding tests", 1);
         logger.bullet("axogen run test node               Node.js binding tests", 1);
         console.log();
         logger.info("Manual Testing:");
         logger.bullet("cargo test -p xpatch               Direct cargo test", 1);
+        logger.bullet("cargo test -p xpatch-c             C bindings tests", 1);
         logger.bullet("cd crates/xpatch-python && python3 tests/test_xpatch.py", 1);
         logger.bullet("cd crates/xpatch-node && bun test.js", 1);
         console.log();
@@ -101,13 +108,16 @@ const howtos = {
         logger.info("List Examples:");
         logger.bullet("axogen run example list", 1);
         console.log();
-        logger.info("Run Specific Example:");
+        logger.info("Rust Examples:");
         logger.bullet("axogen run example basic           Basic usage", 1);
         logger.bullet("axogen run example tags            Tag optimization demo", 1);
         console.log();
+        logger.info("C Examples:");
+        logger.bullet("axogen run example basic --lang=c  Basic C usage", 1);
+        console.log();
         logger.info("Manual:");
-        logger.bullet("cargo run --example basic", 1);
-        logger.bullet("cargo run --example tags", 1);
+        logger.bullet("cargo run --example basic                        Rust", 1);
+        logger.bullet("cd crates/xpatch-c/examples && make && ./basic   C", 1);
         console.log();
     },
 
@@ -158,11 +168,13 @@ const howtos = {
         logger.info("Use the local commands to prepare packages for local testing:");
         console.log();
         logger.bullet("axogen run local rust     Prepare Rust library", 1);
+        logger.bullet("axogen run local c        Prepare C/C++ bindings", 1);
         logger.bullet("axogen run local python   Prepare Python package", 1);
         logger.bullet("axogen run local node     Prepare Node.js package", 1);
         console.log();
         logger.info("These commands will:");
         logger.bullet("Build the package", 1);
+        logger.bullet("Create distribution package (C: crates/xpatch-c/dist/)", 1);
         logger.bullet("Set up local linking (for Python/Node)", 1);
         logger.bullet("Show exact commands to run in your test project", 1);
         console.log();

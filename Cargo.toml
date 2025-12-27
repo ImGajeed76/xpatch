@@ -3,6 +3,7 @@ members = [
     "crates/xpatch",
     "crates/xpatch-python",
     "crates/xpatch-node",
+    "crates/xpatch-c",
 ]
 resolver = "2"
 
