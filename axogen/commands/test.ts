@@ -83,6 +83,19 @@ async function testC(): Promise<void> {
     logger.success("C bindings tests passed");
 }
 
+async function testWasm(): Promise<void> {
+    const wasmPack = await detectTool("wasm-pack", "wasm-pack");
+    if (!wasmPack.installed) {
+        logger.error("wasm-pack not found");
+        logger.info("Install with: cargo install wasm-pack");
+        process.exit(1);
+    }
+
+    logger.start("Running WASM tests");
+    await liveExec("cd crates/xpatch-wasm && wasm-pack test --node");
+    logger.success("WASM tests passed");
+}
+
 export const testCommands = group({
     help: "Test commands for all components",
     commands: {
@@ -114,6 +127,13 @@ export const testCommands = group({
             },
         }),
 
+        wasm: cmd({
+            help: "Run WASM tests",
+            exec: async () => {
+                await testWasm();
+            },
+        }),
+
         all: cmd({
             help: "Run all tests",
             exec: async () => {
@@ -125,6 +145,10 @@ export const testCommands = group({
                 console.log();
                 logger.divider("C Bindings");
                 await testC();
+
+                console.log();
+                logger.divider("WASM");
+                await testWasm();
 
                 console.log();
                 logger.divider("Python");

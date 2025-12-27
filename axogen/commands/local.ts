@@ -162,5 +162,39 @@ export const localCommands = group({
                 console.log();
             },
         }),
+
+        wasm: cmd({
+            help: "Prepare WASM package for local use",
+            exec: async () => {
+                const wasmPath = resolve(process.cwd(), "crates/xpatch-wasm");
+
+                logger.header("Preparing WASM Package for Local Use");
+                console.log();
+
+                logger.start("Building WASM package (web target)");
+                await liveExec("cd crates/xpatch-wasm && wasm-pack build --release --target web");
+                logger.success("WASM package built");
+                console.log();
+
+                logger.header("Ready for Local Use");
+                console.log();
+                logger.info("Package contents:");
+                console.log();
+                logger.logF(`<primary>${wasmPath}/pkg/</primary>`);
+                logger.logF(`<primary>  ├── xpatch_wasm.js</primary>`);
+                logger.logF(`<primary>  ├── xpatch_wasm.d.ts (TypeScript definitions)</primary>`);
+                logger.logF(`<primary>  └── xpatch_wasm_bg.wasm</primary>`);
+                console.log();
+                logger.info("To use in your web project:");
+                console.log();
+                logger.logF(`<primary>import init, { encode, decode } from '${wasmPath}/pkg/xpatch_wasm.js';</primary>`);
+                logger.logF(`<primary>await init();</primary>`);
+                console.log();
+                logger.info("To rebuild for different target:");
+                console.log();
+                logger.logF(`<primary>cd crates/xpatch-wasm && wasm-pack build --release --target [web|nodejs|bundler]</primary>`);
+                console.log();
+            },
+        }),
     },
 });

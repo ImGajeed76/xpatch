@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>xpatch WASM Demo</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 800px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 2em;
+        }
+
+        .version {
+            color: #666;
+            font-size: 0.9em;
+            margin-bottom: 30px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        label {
+            display: block;
+            color: #555;
+            font-weight: 500;
+            margin-bottom: 8px;
+        }
+
+        textarea {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 14px;
+            resize: vertical;
+            transition: border-color 0.3s;
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .controls {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        button {
+            flex: 1;
+            padding: 14px 28px;
+            background: #667eea;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        button:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        button:active {
+            transform: translateY(0);
+        }
+
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .stats {
+            background: #f5f7fa;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .stats h3 {
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .stat-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #e0e0e0;
+        }
+
+        .stat-item:last-child {
+            border-bottom: none;
+        }
+
+        .stat-label {
+            color: #666;
+        }
+
+        .stat-value {
+            color: #333;
+            font-weight: 600;
+        }
+
+        .compression-ratio {
+            color: #10b981;
+            font-weight: 700;
+        }
+
+        .error {
+            background: #fee;
+            color: #c33;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .error.show {
+            display: block;
+        }
+
+        .success {
+            background: #efe;
+            color: #3c3;
+            padding: 12px;
+            border-radius: 8px;
+            margin-top: 20px;
+            display: none;
+        }
+
+        .success.show {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>xpatch WebAssembly Demo</h1>
+        <div class="version" id="version">Loading...</div>
+
+        <div class="input-group">
+            <label for="baseText">Base Text:</label>
+            <textarea id="baseText" rows="4" placeholder="Enter original text...">Hello, World!</textarea>
+        </div>
+
+        <div class="input-group">
+            <label for="newText">New Text:</label>
+            <textarea id="newText" rows="4" placeholder="Enter modified text...">Hello, WebAssembly!</textarea>
+        </div>
+
+        <div class="controls">
+            <button id="encodeBtn">Encode Delta</button>
+            <button id="decodeBtn" disabled>Decode Delta</button>
+        </div>
+
+        <div class="error" id="error"></div>
+        <div class="success" id="success"></div>
+
+        <div class="stats" id="stats" style="display: none;">
+            <h3>Statistics</h3>
+            <div class="stat-item">
+                <span class="stat-label">Original Size:</span>
+                <span class="stat-value" id="originalSize">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Delta Size:</span>
+                <span class="stat-value" id="deltaSize">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Compression Ratio:</span>
+                <span class="stat-value compression-ratio" id="ratio">-</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Tag:</span>
+                <span class="stat-value" id="tag">-</span>
+            </div>
+        </div>
+    </div>
+
+    <script type="module">
+        import init, { encode, decode, get_tag, version } from '../../pkg/xpatch_wasm.js';
+
+        let deltaData = null;
+        let baseData = null;
+
+        async function initWasm() {
+            try {
+                await init();
+                document.getElementById('version').textContent = `Version: ${version()}`;
+            } catch (e) {
+                showError(`Failed to initialize WASM: ${e.message}`);
+            }
+        }
+
+        function showError(message) {
+            const errorEl = document.getElementById('error');
+            errorEl.textContent = message;
+            errorEl.classList.add('show');
+            setTimeout(() => errorEl.classList.remove('show'), 5000);
+        }
+
+        function showSuccess(message) {
+            const successEl = document.getElementById('success');
+            successEl.textContent = message;
+            successEl.classList.add('show');
+            setTimeout(() => successEl.classList.remove('show'), 3000);
+        }
+
+        document.getElementById('encodeBtn').addEventListener('click', () => {
+            try {
+                const baseText = document.getElementById('baseText').value;
+                const newText = document.getElementById('newText').value;
+
+                const encoder = new TextEncoder();
+                baseData = encoder.encode(baseText);
+                const newData = encoder.encode(newText);
+
+                // Encode with tag=0 and zstd enabled
+                deltaData = encode(0, baseData, newData, true);
+
+                // Extract tag
+                const tag = get_tag(deltaData);
+
+                // Update stats
+                document.getElementById('originalSize').textContent = `${newData.length} bytes`;
+                document.getElementById('deltaSize').textContent = `${deltaData.length} bytes`;
+                const ratio = ((1 - deltaData.length / newData.length) * 100).toFixed(1);
+                document.getElementById('ratio').textContent = `${ratio}% saved`;
+                document.getElementById('tag').textContent = tag;
+
+                document.getElementById('stats').style.display = 'block';
+                document.getElementById('decodeBtn').disabled = false;
+                showSuccess('Delta encoded successfully!');
+            } catch (e) {
+                showError(`Encoding failed: ${e.message}`);
+            }
+        });
+
+        document.getElementById('decodeBtn').addEventListener('click', () => {
+            try {
+                if (!deltaData || !baseData) {
+                    showError('Please encode first');
+                    return;
+                }
+
+                const reconstructed = decode(baseData, deltaData);
+                const decoder = new TextDecoder();
+                const text = decoder.decode(reconstructed);
+
+                document.getElementById('newText').value = text;
+                showSuccess('Delta decoded successfully!');
+            } catch (e) {
+                showError(`Decoding failed: ${e.message}`);
+            }
+        });
+
+        // Initialize WASM on load
+        initWasm();
+    </script>
+</body>
+</html>

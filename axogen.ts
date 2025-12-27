@@ -1,5 +1,5 @@
 import { defineConfig } from "@axonotes/axogen";
-import { pythonTarget, nodeTarget, docsTarget } from "./axogen/targets/index.ts";
+import { pythonTarget, nodeTarget, wasmTarget, docsTarget } from "./axogen/targets/index.ts";
 import {
     buildCommands,
     testCommands,
@@ -15,6 +15,7 @@ export default defineConfig({
     targets: {
         python: pythonTarget,
         node: nodeTarget,
+        wasm: wasmTarget,
         docs: docsTarget,
     },
 

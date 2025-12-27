@@ -146,6 +146,23 @@ async function buildC(release: boolean, example: boolean = false): Promise<void>
     }
 }
 
+async function buildWasm(release: boolean, target: "web" | "nodejs" | "bundler" = "bundler"): Promise<void> {
+    const wasmPack = await detectTool("wasm-pack", "wasm-pack");
+    if (!wasmPack.installed) {
+        logger.error("wasm-pack not found");
+        logger.info("Install with: cargo install wasm-pack");
+        process.exit(1);
+    }
+
+    logger.start(`Building WASM bindings (target: ${target})`);
+
+    const flags = release ? "--release" : "--dev";
+    await liveExec(`cd crates/xpatch-wasm && wasm-pack build ${flags} --target ${target}`);
+
+    logger.success("WASM build complete");
+    logger.info(`📦 Package location: crates/xpatch-wasm/pkg/`);
+}
+
 export const buildCommands = group({
     help: "Build commands for all components",
     commands: {
@@ -191,8 +208,19 @@ export const buildCommands = group({
             },
         }),
 
+        wasm: cmd({
+            help: "Build WebAssembly bindings using wasm-pack",
+            options: {
+                release: z.boolean().default(true).describe("Build in release mode"),
+                target: z.enum(["web", "nodejs", "bundler"]).default("bundler").describe("Build target"),
+            },
+            exec: async (ctx) => {
+                await buildWasm(ctx.options.release, ctx.options.target);
+            },
+        }),
+
         all: cmd({
-            help: "Build all components (Rust, C/C++, Python, Node.js)",
+            help: "Build all components (Rust, C/C++, Python, Node.js, WASM)",
             options: {
                 release: z.boolean().default(false).describe("Build in release mode"),
             },
@@ -213,6 +241,10 @@ export const buildCommands = group({
                 console.log();
                 logger.divider("Node.js");
                 await buildNode(ctx.options.release);
+
+                console.log();
+                logger.divider("WebAssembly");
+                await buildWasm(ctx.options.release, "bundler");
 
                 console.log();
                 logger.success("All components built successfully");

@@ -83,6 +83,10 @@ axogen gen
   ```bash
   pip install maturin
   ```
+- **wasm-pack** (for WebAssembly bindings)
+  ```bash
+  cargo install wasm-pack
+  ```
 
 To check which tools are installed:
 
@@ -119,10 +123,21 @@ xpatch/
 │   │   ├── Cargo.toml
 │   │   ├── pyproject.toml          # Auto-generated from axogen
 │   │   └── src/lib.rs
-│   └── xpatch-node/                # Node.js bindings (NAPI-RS)
+│   ├── xpatch-node/                # Node.js bindings (NAPI-RS)
+│   │   ├── Cargo.toml
+│   │   ├── package.json            # Auto-generated from axogen
+│   │   └── src/lib.rs
+│   ├── xpatch-c/                   # C/C++ bindings (FFI)
+│   │   ├── Cargo.toml
+│   │   ├── src/lib.rs
+│   │   └── examples/
+│   └── xpatch-wasm/                # WebAssembly bindings (wasm-bindgen)
 │       ├── Cargo.toml
 │       ├── package.json            # Auto-generated from axogen
-│       └── src/lib.rs
+│       ├── src/lib.rs
+│       └── examples/
+│           ├── browser/            # Interactive browser demo
+│           └── node/               # Node.js examples
 └── target/                         # Build artifacts (gitignored)
 ```
 
@@ -172,6 +187,25 @@ For release builds:
 axogen run build node --release
 ```
 
+#### C/C++ Bindings
+
+```bash
+axogen run build c
+```
+
+#### WebAssembly Bindings
+
+```bash
+# For browsers
+axogen run build wasm --target web
+
+# For Node.js
+axogen run build wasm --target nodejs
+
+# For bundlers (webpack, vite, rollup)
+axogen run build wasm --target bundler
+```
+
 ### Manual Build Commands
 
 If you prefer to build manually:
@@ -194,6 +228,20 @@ maturin build --release      # Release
 cd crates/xpatch-node
 bun install && bun run build        # If using Bun
 npm install && npm run build        # If using npm
+```
+
+**C/C++:**
+```bash
+cd crates/xpatch-c
+cargo build --release
+```
+
+**WebAssembly:**
+```bash
+cd crates/xpatch-wasm
+wasm-pack build --release --target web        # For browsers
+wasm-pack build --release --target nodejs     # For Node.js
+wasm-pack build --release --target bundler    # For bundlers
 ```
 
 ## Running Tests
@@ -224,6 +272,18 @@ axogen run test python
 axogen run test node
 ```
 
+#### C Binding Tests
+
+```bash
+axogen run test c
+```
+
+#### WebAssembly Binding Tests
+
+```bash
+axogen run test wasm
+```
+
 ### Manual Test Commands
 
 **Rust:**
@@ -244,6 +304,19 @@ python tests/test_xpatch.py
 ```bash
 cd crates/xpatch-node
 bun test.js    # Or: node test.js
+```
+
+**C:**
+```bash
+cargo test -p xpatch-c
+```
+
+**WebAssembly:**
+```bash
+cd crates/xpatch-wasm
+wasm-pack test --node        # Run tests in Node.js
+wasm-pack test --headless --chrome    # Run tests in Chrome
+wasm-pack test --headless --firefox   # Run tests in Firefox
 ```
 
 ## Running Examples
@@ -370,6 +443,49 @@ axogen run example basic --lang=c
 - Memory management is explicit - always free buffers and errors
 - Thread safety is ensured - operations can run concurrently
 - See `crates/xpatch-c/README.md` for API documentation
+
+### WebAssembly Development Workflow
+
+```bash
+cd crates/xpatch-wasm
+
+# Build for browsers
+wasm-pack build --release --target web
+
+# Build for Node.js
+wasm-pack build --release --target nodejs
+
+# Build for bundlers
+wasm-pack build --release --target bundler
+
+# Run tests
+wasm-pack test --node
+
+# Run examples
+axogen run example browser --lang=wasm    # Browser demo (auto-builds & serves)
+axogen run example node --lang=wasm       # Node.js example (auto-builds & runs)
+```
+
+**Testing WASM bindings:**
+
+```bash
+# Via axogen (recommended)
+axogen run test wasm
+
+# Or manually
+cd crates/xpatch-wasm
+wasm-pack test --node        # Run in Node.js
+wasm-pack test --headless --chrome    # Run in Chrome
+```
+
+**Development tips:**
+
+- TypeScript definitions are auto-generated in `pkg/xpatch_wasm.d.ts`
+- The browser example includes an interactive UI at `examples/browser/`
+- Node.js example demonstrates all 5 API features at `examples/node/`
+- Web target requires `await init()` before using functions
+- Node.js target loads WASM synchronously, no init needed
+- See `crates/xpatch-wasm/README.md` for API documentation and performance metrics
 
 ## Testing Packages Locally
 

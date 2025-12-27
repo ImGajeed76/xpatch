@@ -6,7 +6,7 @@
 [![Documentation](https://docs.rs/xpatch/badge.svg)](https://docs.rs/xpatch)
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
 
-A high-performance delta compression library with automatic algorithm selection, available for **Rust**, **C/C++**, **Python**, **Node.js**, and as a **CLI tool**.
+A high-performance delta compression library with automatic algorithm selection, available for **Rust**, **C/C++**, **Python**, **Node.js**, **WebAssembly**, and as a **CLI tool**.
 
 ## Demo
 
@@ -28,7 +28,7 @@ crazy space savings while scrubbing through document history like a video timeli
 - **Fast Performance**: 40-55 GB/s throughput for typical changes
 - **Optional zstd Compression**: Additional compression layer for complex changes
 - **Metadata Support**: Embed version tags with zero overhead for values 0-15
-- **Multi-language**: Native bindings for Rust, C/C++, Python, and Node.js
+- **Multi-language**: Native bindings for Rust, C/C++, Python, Node.js, and WebAssembly
 
 ## Installation
 
@@ -72,6 +72,21 @@ pip install xpatch-rs
 ```bash
 npm install xpatch-rs
 ```
+
+### WebAssembly
+
+```bash
+# Build for web (browser)
+axogen run build wasm --target web
+
+# Build for Node.js
+axogen run build wasm --target nodejs
+
+# Build for bundlers (webpack, vite, rollup)
+axogen run build wasm --target bundler
+```
+
+See [crates/xpatch-wasm/README.md](crates/xpatch-wasm/README.md) for usage examples and API reference.
 
 ### CLI Tool
 
@@ -175,6 +190,29 @@ console.log(reconstructed.equals(newData)); // true
 
 // Extract tag
 const tag = xpatch.getTag(delta);
+console.log(`Compressed ${newData.length} → ${delta.length} bytes`);
+```
+
+### WebAssembly
+
+```javascript
+import init, { encode, decode, get_tag } from './pkg/xpatch_wasm.js';
+
+await init();
+
+const encoder = new TextEncoder();
+const base = encoder.encode("Hello, World!");
+const newData = encoder.encode("Hello, WASM!");
+
+// Create delta
+const delta = encode(0, base, newData, true);
+
+// Apply delta
+const reconstructed = decode(base, delta);
+console.log(new TextDecoder().decode(reconstructed)); // "Hello, WASM!"
+
+// Extract tag
+const tag = get_tag(delta);
 console.log(`Compressed ${newData.length} → ${delta.length} bytes`);
 ```
 

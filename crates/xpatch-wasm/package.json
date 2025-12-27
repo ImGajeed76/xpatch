@@ -1,0 +1,19 @@
+{
+  "name": "xpatch-wasm",
+  "version": "0.3.1",
+  "description": "WebAssembly bindings for xpatch - high-performance delta compression library",
+  "license": "AGPL-3.0-or-later",
+  "author": "ImGajeed76",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/ImGajeed76/xpatch.git",
+    "directory": "crates/xpatch-wasm"
+  },
+  "homepage": "https://github.com/ImGajeed76/xpatch",
+  "keywords": [    "delta",    "compression",    "diff",    "patch",    "version-control",    "wasm",    "webassembly"  ],
+  "main": "pkg/xpatch_wasm.js",
+  "types": "pkg/xpatch_wasm.d.ts",
+  "files": [
+    "pkg"
+  ]
+}

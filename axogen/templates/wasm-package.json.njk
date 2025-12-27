@@ -1,0 +1,23 @@
+{
+  "name": "{{ wasmPackageName }}",
+  "version": "{{ version }}",
+  "description": "{{ description }}",
+  "license": "{{ license }}",
+  "author": "{{ author }}",
+  "repository": {
+    "type": "git",
+    "url": "git+{{ repository }}.git",
+    "directory": "crates/xpatch-wasm"
+  },
+  "homepage": "{{ homepage }}",
+  "keywords": [
+{%- for keyword in keywords %}
+    "{{ keyword }}"{{ "," if not loop.last else "" }}
+{%- endfor %}
+  ],
+  "main": "pkg/xpatch_wasm.js",
+  "types": "pkg/xpatch_wasm.d.ts",
+  "files": [
+    "pkg"
+  ]
+}

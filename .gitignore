@@ -22,3 +22,6 @@ bun.lock
 crates/xpatch-c/dist/
 crates/xpatch-c/examples/basic
 crates/xpatch-c/xpatch.h
+
+# WASM bindings
+crates/xpatch-wasm/pkg/

@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - Complete documentation with API reference, best practices, and troubleshooting
     - C and C++ usage examples with Makefile
     - Enables Go and other language bindings through C FFI layer
+- **WebAssembly Bindings** (`crates/xpatch-wasm/`):
+    - wasm-bindgen wrapper with 4 core functions (encode, decode, get_tag, version)
+    - Auto-generated TypeScript definitions with comprehensive JSDoc documentation
+    - 7 comprehensive tests covering all functions, error handling, and edge cases
+    - Support for web, Node.js, and bundler targets via wasm-pack
+    - Interactive browser demo with real-time compression visualization
+    - Node.js example demonstrating all API features
+    - Full axogen integration (`build wasm --target=[web|nodejs|bundler]`, `test wasm`)
+    - Benchmarked performance metrics (16µs encode, 2µs decode for small data)
+    - Complete documentation with API reference, performance data, and use cases
 - **Version Compatibility Documentation**: Added version compatibility section in README clarifying that delta format is stable from v0.3.0 onwards
 
 ## [0.3.1] - 2025-12-27

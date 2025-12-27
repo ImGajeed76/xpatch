@@ -8,7 +8,7 @@ const howtos = {
         console.log();
         logger.info("Common Commands:");
         logger.bullet("axogen run setup              Set up development environment", 1);
-        logger.bullet("axogen run build [target]     Build components (rust|c|python|node|all)", 1);
+        logger.bullet("axogen run build [target]     Build components (rust|c|python|node|wasm|all)", 1);
         logger.bullet("axogen run test [target]      Run tests", 1);
         logger.bullet("axogen run example <name>     Run an example", 1);
         logger.bullet("axogen run clean              Clean build artifacts", 1);
@@ -44,6 +44,12 @@ const howtos = {
         logger.bullet("axogen run build node              Uses bun or npm", 1);
         logger.bullet("cd crates/xpatch-node && bun install && bun run build", 1);
         console.log();
+        logger.info("WebAssembly Bindings:");
+        logger.bullet("axogen run build wasm --target web       For browsers", 1);
+        logger.bullet("axogen run build wasm --target nodejs    For Node.js", 1);
+        logger.bullet("axogen run build wasm --target bundler   For webpack/vite", 1);
+        logger.bullet("cd crates/xpatch-wasm && wasm-pack build --release --target web", 1);
+        console.log();
         logger.info("Build Everything:");
         logger.bullet("axogen run build all               Builds in correct order", 1);
         console.log();
@@ -60,12 +66,14 @@ const howtos = {
         logger.bullet("axogen run test c                  C bindings tests", 1);
         logger.bullet("axogen run test python             Python binding tests", 1);
         logger.bullet("axogen run test node               Node.js binding tests", 1);
+        logger.bullet("axogen run test wasm               WASM binding tests", 1);
         console.log();
         logger.info("Manual Testing:");
         logger.bullet("cargo test -p xpatch               Direct cargo test", 1);
         logger.bullet("cargo test -p xpatch-c             C bindings tests", 1);
         logger.bullet("cd crates/xpatch-python && python3 tests/test_xpatch.py", 1);
         logger.bullet("cd crates/xpatch-node && bun test.js", 1);
+        logger.bullet("cd crates/xpatch-wasm && wasm-pack test --node", 1);
         console.log();
     },
 
@@ -114,6 +122,10 @@ const howtos = {
         console.log();
         logger.info("C Examples:");
         logger.bullet("axogen run example basic --lang=c  Basic C usage", 1);
+        console.log();
+        logger.info("WASM Examples:");
+        logger.bullet("axogen run example browser --lang=wasm  Interactive browser demo", 1);
+        logger.bullet("axogen run example node --lang=wasm     Node.js example", 1);
         console.log();
         logger.info("Manual:");
         logger.bullet("cargo run --example basic                        Rust", 1);
@@ -171,6 +183,7 @@ const howtos = {
         logger.bullet("axogen run local c        Prepare C/C++ bindings", 1);
         logger.bullet("axogen run local python   Prepare Python package", 1);
         logger.bullet("axogen run local node     Prepare Node.js package", 1);
+        logger.bullet("axogen run local wasm     Prepare WASM package", 1);
         console.log();
         logger.info("These commands will:");
         logger.bullet("Build the package", 1);
