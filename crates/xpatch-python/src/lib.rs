@@ -18,15 +18,15 @@
 // For commercial use in proprietary software, a commercial license is
 // available. Contact xpatch-commercial@alias.oseifert.ch for details.
 
+use ::xpatch::delta;
+use pyo3::exceptions::PyValueError;
 use pyo3::prelude::*;
 use pyo3::types::PyBytes;
-use pyo3::exceptions::PyValueError;
-use ::xpatch::delta;
 
 /// Encode a delta patch between base_data and new_data.
 ///
 /// Args:
-///     tag: Metadata tag to embed in the delta (0-255)
+///     tag: Metadata tag to embed in the delta (0-15 with no overhead)
 ///     base_data: The original data as bytes
 ///     new_data: The new data as bytes
 ///     enable_zstd: Whether to enable zstd compression (default: True)
@@ -75,11 +75,7 @@ fn encode<'py>(
 ///     >>> decoded == new
 ///     True
 #[pyfunction]
-fn decode<'py>(
-    py: Python<'py>,
-    base_data: &[u8],
-    delta: &[u8],
-) -> PyResult<Bound<'py, PyBytes>> {
+fn decode<'py>(py: Python<'py>, base_data: &[u8], delta: &[u8]) -> PyResult<Bound<'py, PyBytes>> {
     match delta::decode(base_data, delta) {
         Ok(result) => Ok(PyBytes::new(py, &result[..])),
         Err(error) => Err(PyValueError::new_err(error)),

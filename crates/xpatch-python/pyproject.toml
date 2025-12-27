@@ -1,3 +1,6 @@
+# This file was generated at 2025-12-27T15:38:25.099Z by axogen
+# Please only edit in axogen/templates/pyproject.toml.njk
+
 [build-system]
 requires = ["maturin>=1.0,<2.0"]
 build-backend = "maturin"
@@ -10,20 +13,7 @@ authors = [{name = "ImGajeed76"}]
 license = {text = "AGPL-3.0-or-later"}
 readme = "README.md"
 requires-python = ">=3.8"
-classifiers = [
-    "Programming Language :: Rust",
-    "Programming Language :: Python :: Implementation :: CPython",
-    "Programming Language :: Python :: Implementation :: PyPy",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3.8",
-    "Programming Language :: Python :: 3.9",
-    "Programming Language :: Python :: 3.10",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",
-    "Topic :: System :: Archiving :: Compression",
-]
+classifiers = [    "Programming Language :: Rust",    "Programming Language :: Python :: Implementation :: CPython",    "Programming Language :: Python :: Implementation :: PyPy",    "Programming Language :: Python :: 3",    "Programming Language :: Python :: 3.8",    "Programming Language :: Python :: 3.9",    "Programming Language :: Python :: 3.10",    "Programming Language :: Python :: 3.11",    "Programming Language :: Python :: 3.12",    "Programming Language :: Python :: 3.13",    "License :: OSI Approved :: GNU Affero General Public License v3 or later (AGPLv3+)",    "Topic :: System :: Archiving :: Compression",]
 keywords = ["delta", "compression", "diff", "patch", "version-control"]
 
 [project.urls]

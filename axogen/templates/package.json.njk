@@ -1,15 +1,19 @@
 {
-  "name": "xpatch-rs",
-  "version": "0.2.0",
-  "description": "High-performance delta compression library with automatic algorithm selection",
-  "license": "AGPL-3.0-or-later",
-  "author": "ImGajeed76",
+  "name": "{{ nodePackageName }}",
+  "version": "{{ version }}",
+  "description": "{{ description }}",
+  "license": "{{ license }}",
+  "author": "{{ author }}",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/ImGajeed76/xpatch.git"
+    "url": "git+{{ repository }}.git"
   },
-  "homepage": "https://github.com/ImGajeed76/xpatch",
-  "keywords": [    "delta",    "compression",    "diff",    "patch",    "version-control"  ],
+  "homepage": "{{ homepage }}",
+  "keywords": [
+{%- for keyword in keywords %}
+    "{{ keyword }}"{{ "," if not loop.last else "" }}
+{%- endfor %}
+  ],
   "main": "index.js",
   "types": "index.d.ts",
   "files": [

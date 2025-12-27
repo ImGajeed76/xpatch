@@ -1,0 +1,34 @@
+# This file was generated at {{ _meta.generated_at }} by axogen
+# Please only edit in axogen/templates/pyproject.toml.njk
+
+[build-system]
+requires = ["maturin>=1.0,<2.0"]
+build-backend = "maturin"
+
+[project]
+name = "{{ pythonPackageName }}"
+version = "{{ version }}"
+description = "{{ description }}"
+authors = [{name = "{{ author }}"}]
+license = {text = "{{ license }}"}
+readme = "README.md"
+requires-python = ">=3.8"
+classifiers = [
+{%- for classifier in pythonClassifiers %}
+    "{{ classifier }}",
+{%- endfor %}
+]
+keywords = [
+{%- for keyword in keywords -%}
+"{{ keyword }}"{{ ", " if not loop.last else "" }}
+{%- endfor -%}
+]
+
+[project.urls]
+Homepage = "{{ homepage }}"
+Repository = "{{ repository }}"
+Documentation = "{{ repository }}#readme"
+
+[tool.maturin]
+features = ["pyo3/extension-module"]
+module-name = "xpatch"

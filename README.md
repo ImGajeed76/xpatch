@@ -173,41 +173,72 @@ xpatch/
 
 ## Development
 
-### Building All Bindings
+### Quick Start for Contributors
 
-#### Core Library & CLI
+After cloning the repository:
 
 ```bash
-cargo build --all
-cargo test -p xpatch
+# Install dependencies (requires Bun)
+bun install
+
+# Run interactive setup (detects tools, builds everything)
+axogen run setup
 ```
 
-#### Python Bindings
+### Common Commands
 
 ```bash
+# Build components
+axogen run build rust          # Core Rust library
+axogen run build python        # Python bindings
+axogen run build node          # Node.js bindings
+axogen run build all           # Everything
+
+# Run tests
+axogen run test                # All tests
+axogen run test rust           # Rust only
+axogen run test python         # Python only
+axogen run test node           # Node only
+
+# Local testing (prepare packages for use in other projects)
+axogen run local rust          # Prepare Rust library
+axogen run local python        # Prepare Python package
+axogen run local node          # Prepare Node.js package
+
+# Code quality
+axogen run fmt                 # Format all code
+axogen run lint                # Lint all code
+
+# Examples
+axogen run example basic       # Run basic example
+axogen run example tags        # Run tags example
+
+# Quick reference
+axogen run howto               # Show all documentation
+axogen run howto build         # Build instructions
+axogen run howto bench         # Benchmark guide
+axogen run howto local         # Local testing guide
+```
+
+For complete development documentation, see [DEVELOPMENT.md](DEVELOPMENT.md).
+
+### Manual Build Commands
+
+If you prefer not to use Axogen:
+
+```bash
+# Rust
+cargo build --all
+cargo test -p xpatch
+
+# Python
 cd crates/xpatch-python
 pip install maturin
 maturin develop
-```
 
-#### Node.js Bindings
-
-```bash
+# Node.js
 cd crates/xpatch-node
-npm install
-npm run build
-```
-
-### Running Examples
-
-```bash
-# Rust examples
-cargo run --example basic
-cargo run --example tags
-
-# CLI examples
-cargo run -p xpatch --features cli -- encode base.txt new.txt -o patch.xp
-cargo run -p xpatch --features cli -- info patch.xp
+npm install && npm run build
 ```
 
 ## Benchmark Results

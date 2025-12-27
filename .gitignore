@@ -9,3 +9,11 @@ Cargo.lock
 *.profraw
 *.profdata
 .DS_Store
+
+# Node.js / Bun
+node_modules/
+bun.lockb
+bun.lock
+
+# Axogen
+.axogen/
