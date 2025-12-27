@@ -135,5 +135,5 @@ See [LICENSE-AGPL.txt](../../LICENSE-AGPL.txt) and [LICENSE-COMMERCIAL.txt](../.
 ## Links
 
 - [GitHub Repository](https://github.com/ImGajeed76/xpatch)
-- [Demo Editor](https://github.com/imgajeed76/xpatch_demo_editor)
+- [Demo Editor](https://github.com/ImGajeed76/xpatch_demo_editor)
 - [npm Package](https://www.npmjs.com/package/xpatch-rs)

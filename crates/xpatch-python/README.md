@@ -44,7 +44,7 @@ print(f"Tag: {tag}")
 Creates a delta patch between `base_data` and `new_data`.
 
 **Parameters:**
-- `tag` (int): Metadata tag to embed (0-255 recommended)
+- `tag` (int): Metadata tag to embed (0-15 for no overhead, larger values supported)
 - `base_data` (bytes): Original data
 - `new_data` (bytes): New data
 - `enable_zstd` (bool): Enable zstd compression (default: True)
@@ -103,6 +103,6 @@ See [LICENSE-AGPL.txt](../../LICENSE-AGPL.txt) and [LICENSE-COMMERCIAL.txt](../.
 ## Links
 
 - [GitHub Repository](https://github.com/ImGajeed76/xpatch)
-- [Demo Editor](https://github.com/imgajeed76/xpatch_demo_editor)
+- [Demo Editor](https://github.com/ImGajeed76/xpatch_demo_editor)
 - [PyPI Package](https://pypi.org/project/xpatch-rs/)
 - [Rust Documentation](https://docs.rs/xpatch)

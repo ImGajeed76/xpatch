@@ -10,7 +10,7 @@ A high-performance delta compression library with automatic algorithm selection,
 
 ## Demo
 
-**[🚀 Try the live demo →](https://github.com/imgajeed76/xpatch_demo_editor)**
+**[🚀 Try the live demo →](https://github.com/ImGajeed76/xpatch_demo_editor)**
 
 A lightning-fast markdown editor showcasing xpatch's compression and time-travel capabilities. Watch it achieve
 crazy space savings while scrubbing through document history like a video timeline.
@@ -484,7 +484,7 @@ Results are saved to timestamped files in `benchmark_results/` with both JSON an
 ## Related Projects
 
 - [gdelta](https://github.com/ImGajeed76/gdelta) - General-purpose delta compression algorithm used by xpatch
-- [xpatch Demo Editor](https://github.com/imgajeed76/xpatch_demo_editor) - Live demo showcasing xpatch capabilities
+- [xpatch Demo Editor](https://github.com/ImGajeed76/xpatch_demo_editor) - Live demo showcasing xpatch capabilities
 
 ## License
 
