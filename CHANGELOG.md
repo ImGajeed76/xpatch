@@ -7,6 +7,43 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2025-12-27
+
+### Added
+
+- **Multi-Language Bindings**:
+    - **Python bindings** (PyO3 + Maturin): Published as `xpatch-rs` on PyPI
+    - **Node.js bindings** (NAPI-RS): Published as `xpatch-rs` on npm
+    - Full API parity with Rust library across all bindings
+    - Comprehensive test suites for Python and Node.js
+- **Axogen Build Automation System**:
+    - Interactive setup command for detecting and configuring development tools
+    - Unified build, test, and local packaging commands for all languages
+    - Auto-generation of configuration files (pyproject.toml, package.json, DEVELOPMENT.md)
+    - Built-in howto documentation system
+- **CharsZstd Algorithm**: New compression algorithm that applies zstd to continuous character additions for improved compression on large insertions
+- **Documentation**:
+    - Comprehensive DEVELOPMENT.md with setup, build, test, and contribution guidelines
+    - Crate-level README.md for Rust package on crates.io
+    - Documented Rust edition 2024 requirement (Rust 1.92.0+)
+    - Demo editor reference showcasing xpatch capabilities
+
+### Changed
+
+- **Repository Structure**: Reorganized into workspace with separate crates for core library, Python bindings, and Node.js bindings
+- **Licensing Documentation**: Clarified dual-license philosophy and improved commercial licensing explanation
+- **Requirements**:
+    - Documented Rust 1.92.0+ requirement for Rust edition 2024 support
+    - Standardized Node.js version requirement to 16+
+- **README Improvements**: Enhanced README flow with better feature descriptions and licensing clarity
+
+### Fixed
+
+- Broken CHANGELOG repository link (xpatch-lib → ImGajeed76)
+- Clippy warnings
+
+[0.3.0]: https://github.com/ImGajeed76/xpatch/releases/tag/v0.3.0
+
 ## [0.2.0] - 2025-12-11
 
 ### Added
@@ -78,7 +115,7 @@ Tested on **1,359,468 real-world git commit changes** across tokio (133,728 delt
   comprehensive benchmark suite including xpatch
 - Old CLI at `src/bin/xpatch.rs` (replaced with enhanced version)
 
-[0.2.0]: https://github.com/xpatch-lib/xpatch/releases/tag/v0.2.0
+[0.2.0]: https://github.com/ImGajeed76/xpatch/releases/tag/v0.2.0
 
 ## [0.1.0] - 2025-12-07
 

@@ -36,8 +36,11 @@ crazy space savings while scrubbing through document history like a video timeli
 
 ```toml
 [dependencies]
-xpatch = "0.2.0"
+xpatch = "0.3.0"
 ```
+
+**Requirements:**
+- Rust 1.92.0+ (for Rust edition 2024 support)
 
 ### Python
 

@@ -1,6 +1,6 @@
 {
   "name": "xpatch-rs",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "High-performance delta compression library with automatic algorithm selection",
   "license": "AGPL-3.0-or-later",
   "author": "ImGajeed76",
@@ -18,7 +18,7 @@
     "*.node"
   ],
   "engines": {
-    "node": ">= 10"
+    "node": ">= 16"
   },
   "scripts": {
     "artifacts": "napi artifacts",
