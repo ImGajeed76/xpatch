@@ -76,12 +76,16 @@ Extracts the metadata tag from a delta patch without decoding.
 
 ## Performance
 
-xpatch achieves exceptional compression ratios on real-world data:
+Native Python bindings provide excellent performance:
 
-- **99.8% compression** on typical code changes
-- **2 byte median delta** for sequential edits
-- **Instant decoding** (<1µs for most patches)
-- **40-55 GB/s throughput** for encoding
+- **Small data** (~13 bytes): ~7 µs encode, <0.1 µs decode
+- **Medium data** (10KB): ~8 µs encode, ~0.5 µs decode
+- **Large data** (100KB): ~12 µs encode, ~4 µs decode
+- **Tag extraction**: <0.1 µs
+
+Compression ratios on test data:
+- 1 byte change in 10KB file: **11 bytes** delta (99.89% compression)
+- 1 byte change in 100KB file: **14 bytes** delta (99.99% compression)
 
 ## Use Cases
 

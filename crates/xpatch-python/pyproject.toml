@@ -21,3 +21,4 @@ Documentation = "https://github.com/ImGajeed76/xpatch#readme"
 [tool.maturin]
 features = ["pyo3/extension-module"]
 module-name = "xpatch"
+strip = true
