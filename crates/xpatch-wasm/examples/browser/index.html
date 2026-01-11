@@ -223,7 +223,7 @@
                 await init();
                 document.getElementById('version').textContent = `Version: ${version()}`;
             } catch (e) {
-                showError(`Failed to initialize WASM: ${e.message}`);
+                showError(`Failed to initialize WASM: ${e.message || e}`);
             }
         }
 
@@ -267,7 +267,7 @@
                 document.getElementById('decodeBtn').disabled = false;
                 showSuccess('Delta encoded successfully!');
             } catch (e) {
-                showError(`Encoding failed: ${e.message}`);
+                showError(`Encoding failed: ${e.message || e}`);
             }
         });
 
@@ -285,7 +285,7 @@
                 document.getElementById('newText').value = text;
                 showSuccess('Delta decoded successfully!');
             } catch (e) {
-                showError(`Decoding failed: ${e.message}`);
+                showError(`Decoding failed: ${e.message || e}`);
             }
         });
 

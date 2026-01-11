@@ -61,7 +61,7 @@ try {
     decode(base1, invalidDelta);
     console.log('ERROR: Should have thrown!');
 } catch (e) {
-    console.log(`Correctly rejected invalid delta: ${e.message}\n`);
+    console.log(`Correctly rejected invalid delta: ${e}\n`);
 }
 
 // Example 5: Zero-overhead tags (0-15)
