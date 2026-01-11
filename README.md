@@ -36,7 +36,7 @@ crazy space savings while scrubbing through document history like a video timeli
 
 ```toml
 [dependencies]
-xpatch = "0.4.0"
+xpatch = "0.4.2"
 ```
 
 **Requirements:**
@@ -175,46 +175,46 @@ tag = xpatch.get_tag(delta)
 print(f"Compressed {len(new)} → {len(delta)} bytes")
 ```
 
-### Node.js / TypeScript
+### Node.js / TypeScript (WASM)
 
-```javascript
-const xpatch = require('xpatch-rs');
-
-const base = Buffer.from('Hello, World!');
-const newData = Buffer.from('Hello, Node!');
-
-// Create delta
-const delta = xpatch.encode(0, base, newData);
-
-// Apply delta
-const reconstructed = xpatch.decode(base, delta);
-console.log(reconstructed.equals(newData)); // true
-
-// Extract tag
-const tag = xpatch.getTag(delta);
-console.log(`Compressed ${newData.length} → ${delta.length} bytes`);
-```
-
-### WebAssembly
-
-```javascript
-import init, { encode, decode, get_tag } from './pkg/xpatch_wasm.js';
+```typescript
+import init, { encode, decode, get_tag } from "xpatch-rs";
 
 await init();
 
 const encoder = new TextEncoder();
 const base = encoder.encode("Hello, World!");
-const newData = encoder.encode("Hello, WASM!");
+const newData = encoder.encode("Hello, Node!");
 
 // Create delta
 const delta = encode(0, base, newData, true);
 
 // Apply delta
 const reconstructed = decode(base, delta);
-console.log(new TextDecoder().decode(reconstructed)); // "Hello, WASM!"
+console.log(new TextDecoder().decode(reconstructed)); // "Hello, Node!"
 
 // Extract tag
 const tag = get_tag(delta);
+console.log(`Compressed ${newData.length} → ${delta.length} bytes`);
+```
+
+### Node.js Native (Optional)
+
+```typescript
+import { encode, decode, getTag } from "xpatch-rs-native";
+
+const base = Buffer.from("Hello, World!");
+const newData = Buffer.from("Hello, Node!");
+
+// Create delta
+const delta = encode(0, base, newData);
+
+// Apply delta
+const reconstructed = decode(base, delta);
+console.log(reconstructed.equals(newData)); // true
+
+// Extract tag
+const tag = getTag(delta);
 console.log(`Compressed ${newData.length} → ${delta.length} bytes`);
 ```
 

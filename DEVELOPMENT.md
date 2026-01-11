@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide provides instructions for building, testing, and contributing to xpatch (v0.4.0).
+This guide provides instructions for building, testing, and contributing to xpatch (v0.4.1).
 
 ## Table of Contents
 

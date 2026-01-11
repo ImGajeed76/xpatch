@@ -4,6 +4,7 @@ import { detectTool } from "../utils/tool-detection.ts";
 import { logger } from "../console/logger.ts";
 import { getPreference, setPreference } from "../preferences.ts";
 import { askYesNo } from "../utils/prompts.ts";
+import { metadata } from "../metadata.ts";
 
 async function buildRust(release: boolean, cli: boolean): Promise<void> {
     const cargo = await detectTool("Cargo", "cargo");
@@ -168,8 +169,27 @@ async function buildWasm(release: boolean, target: "web" | "nodejs" | "bundler" 
         }
     }
 
+    // Patch package.json to use correct npm package name and metadata
+    logger.start("Patching package.json for npm");
+    const fs = await import("fs/promises");
+    const pkgJsonPath = "crates/xpatch-wasm/pkg/package.json";
+    const pkgJson = JSON.parse(await fs.readFile(pkgJsonPath, "utf-8"));
+    pkgJson.name = metadata.wasmPackageName;
+    pkgJson.version = metadata.version;
+    pkgJson.description = "High-performance delta compression library - universal WASM bindings for browser and Node.js";
+    pkgJson.keywords = [...metadata.keywords, "wasm", "webassembly"];
+    pkgJson.repository = {
+        type: "git",
+        url: `git+${metadata.repository}.git`,
+        directory: "crates/xpatch-wasm"
+    };
+    pkgJson.homepage = metadata.homepage;
+    pkgJson.author = metadata.author;
+    await fs.writeFile(pkgJsonPath, JSON.stringify(pkgJson, null, 2));
+
     logger.success("WASM build complete");
     logger.info(`📦 Package location: crates/xpatch-wasm/pkg/`);
+    logger.info(`📦 npm package name: ${metadata.wasmPackageName}@${metadata.version}`);
 }
 
 export const buildCommands = group({

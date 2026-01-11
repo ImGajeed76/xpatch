@@ -5,7 +5,7 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.4.2] - 2025-01-12
 
 ### Added
 
@@ -20,16 +20,38 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
     - C and C++ usage examples with Makefile
     - Enables Go and other language bindings through C FFI layer
 - **WebAssembly Bindings** (`crates/xpatch-wasm/`):
+    - Published as `xpatch-rs` on npm (recommended for browser and Node.js)
     - wasm-bindgen wrapper with 4 core functions (encode, decode, get_tag, version)
     - Auto-generated TypeScript definitions with comprehensive JSDoc documentation
     - 7 comprehensive tests covering all functions, error handling, and edge cases
-    - Support for web, Node.js, and bundler targets via wasm-pack
+    - Support for web target via wasm-pack (requires `await init()` before use)
     - Interactive browser demo with real-time compression visualization
     - Node.js example demonstrating all API features
     - Full axogen integration (`build wasm --target=[web|nodejs|bundler]`, `test wasm`)
-    - Benchmarked performance metrics (16µs encode, 2µs decode for small data)
+    - Benchmarked performance metrics (~10µs encode, ~1µs decode for small data)
+    - ~890KB universal package works in browsers, Node.js, Bun, Deno, and edge runtimes
     - Complete documentation with API reference, performance data, and use cases
 - **Version Compatibility Documentation**: Added version compatibility section in README clarifying that delta format is stable from v0.3.0 onwards
+
+### Changed
+
+- **npm Package Reorganization**:
+    - `xpatch-rs` on npm is now the **WASM package** (recommended for most use cases)
+    - `xpatch-rs-native` on npm provides native Node.js bindings for maximum performance
+    - Previous Node.js bindings moved from `xpatch-rs` to `xpatch-rs-native`
+
+### Fixed
+
+- WASM package now correctly published with all required files
+- Build system patches package.json metadata after wasm-pack build
+
+### Performance
+
+- **WASM**: ~10µs encode, ~1µs decode (small data), 99.88% compression on 10KB with 1-byte change
+- **Python**: ~7µs encode, <0.1µs decode (small data)
+- **Node.js Native**: ~10-30% faster than WASM
+
+[0.4.2]: https://github.com/ImGajeed76/xpatch/releases/tag/v0.4.2
 
 ## [0.3.1] - 2025-12-27
 
