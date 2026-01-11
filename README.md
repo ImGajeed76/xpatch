@@ -36,7 +36,7 @@ crazy space savings while scrubbing through document history like a video timeli
 
 ```toml
 [dependencies]
-xpatch = "0.3.1"
+xpatch = "0.4.0"
 ```
 
 **Requirements:**
@@ -67,26 +67,28 @@ See [crates/xpatch-c/README.md](crates/xpatch-c/README.md) for usage examples an
 pip install xpatch-rs
 ```
 
-### Node.js
+### Node.js / Browser (WASM - Recommended)
 
 ```bash
 npm install xpatch-rs
 ```
 
-### WebAssembly
+The default `xpatch-rs` package uses WebAssembly, which works in both **Node.js and browsers** with a single ~890KB package.
+
+### Node.js Native (Optional)
 
 ```bash
-# Build for web (browser)
-axogen run build wasm --target web
-
-# Build for Node.js
-axogen run build wasm --target nodejs
-
-# Build for bundlers (webpack, vite, rollup)
-axogen run build wasm --target bundler
+npm install xpatch-rs-native
 ```
 
-See [crates/xpatch-wasm/README.md](crates/xpatch-wasm/README.md) for usage examples and API reference.
+For performance-critical server applications, `xpatch-rs-native` provides native bindings via napi-rs. This is ~10-30% faster than WASM but only works in Node.js and requires platform-specific binaries.
+
+| Package | Size | Platforms | Performance |
+|---------|------|-----------|-------------|
+| `xpatch-rs` | ~890KB | Browser + Node.js | Fast |
+| `xpatch-rs-native` | ~2MB/platform | Node.js only | Fastest |
+
+See [crates/xpatch-wasm/README.md](crates/xpatch-wasm/README.md) for WASM usage and [crates/xpatch-node-native/README.md](crates/xpatch-node-native/README.md) for native bindings.
 
 ### CLI Tool
 
@@ -260,10 +262,11 @@ across different file types and change patterns.
 xpatch/
 ├── Cargo.toml              # Workspace root
 ├── crates/
-│   ├── xpatch/            # Core Rust library with CLI
-│   ├── xpatch-c/          # C/C++ bindings (cbindgen + FFI)
-│   ├── xpatch-python/     # Python bindings (PyO3 + Maturin)
-│   └── xpatch-node/       # Node.js bindings (NAPI-RS)
+│   ├── xpatch/             # Core Rust library with CLI
+│   ├── xpatch-c/           # C/C++ bindings (cbindgen + FFI)
+│   ├── xpatch-python/      # Python bindings (PyO3 + Maturin)
+│   ├── xpatch-wasm/        # WASM bindings → npm: xpatch-rs (recommended)
+│   └── xpatch-node-native/ # Native Node.js bindings → npm: xpatch-rs-native
 └── README.md
 ```
 

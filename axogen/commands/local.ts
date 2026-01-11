@@ -123,7 +123,7 @@ export const localCommands = group({
         node: cmd({
             help: "Prepare Node.js package for local use",
             exec: async () => {
-                const nodePath = resolve(process.cwd(), "crates/xpatch-node");
+                const nodePath = resolve(process.cwd(), "crates/xpatch-node-native");
 
                 logger.header("Preparing Node.js Package for Local Use");
                 console.log();
@@ -137,12 +137,12 @@ export const localCommands = group({
                 }
 
                 logger.start(`Building Node.js package with ${pm}`);
-                await liveExec(`cd crates/xpatch-node && ${pm} run build`);
+                await liveExec(`cd crates/xpatch-node-native && ${pm} run build`);
                 logger.success("Node.js package built");
                 console.log();
 
                 logger.start(`Creating global link with ${pm} link`);
-                await liveExec(`cd crates/xpatch-node && ${pm} link`);
+                await liveExec(`cd crates/xpatch-node-native && ${pm} link`);
                 logger.success("Package linked globally");
                 console.log();
 
@@ -150,11 +150,11 @@ export const localCommands = group({
                 console.log();
                 logger.info("Run this command in your test project:");
                 console.log();
-                logger.logF(`<primary>${pm} link xpatch-rs</primary>`);
+                logger.logF(`<primary>${pm} link xpatch-rs-native</primary>`);
                 console.log();
                 logger.info("To unlink later:");
                 console.log();
-                logger.logF(`<primary>${pm} unlink xpatch-rs</primary>`);
+                logger.logF(`<primary>${pm} unlink xpatch-rs-native</primary>`);
                 console.log();
                 logger.info("Alternative: Direct path install");
                 console.log();

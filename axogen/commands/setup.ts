@@ -62,7 +62,7 @@ export const setupCommand = cmd({
         const pm = tools.bun.installed ? "bun" : "npm";
         if (tools.bun.installed || tools.npm.installed) {
             logger.info(`Installing Node.js dependencies with ${pm}`);
-            await liveExec(`cd crates/xpatch-node && ${pm} install`);
+            await liveExec(`cd crates/xpatch-node-native && ${pm} install`);
         }
 
         console.log();

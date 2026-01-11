@@ -1,9 +1,9 @@
 [package]
-name = "xpatch-node"
+name = "xpatch-node-native"
 version.workspace = true
 edition.workspace = true
 license.workspace = true
-description = "Node.js bindings for the xpatch delta compression library"
+description = "Native Node.js bindings for the xpatch delta compression library (high performance)"
 repository.workspace = true
 homepage.workspace = true
 

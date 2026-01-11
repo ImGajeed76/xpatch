@@ -1,7 +1,7 @@
 {
-  "name": "xpatch-wasm",
-  "version": "0.3.1",
-  "description": "WebAssembly bindings for xpatch - high-performance delta compression library",
+  "name": "xpatch-rs",
+  "version": "0.4.0",
+  "description": "High-performance delta compression library - universal WASM bindings for browser and Node.js",
   "license": "AGPL-3.0-or-later",
   "author": "ImGajeed76",
   "repository": {

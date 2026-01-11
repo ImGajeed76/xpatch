@@ -29,7 +29,8 @@ export const metadata = {
     author: workspaceCargo.workspace.package.authors[0],
 
     pythonPackageName: "xpatch-rs",
-    nodePackageName: "xpatch-rs",
+    nodePackageName: "xpatch-rs-native",
+    wasmPackageName: "xpatch-rs",
     description: "High-performance delta compression library with automatic algorithm selection",
     keywords: ["delta", "compression", "diff", "patch", "version-control"],
 

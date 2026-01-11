@@ -1,21 +1,22 @@
-# xpatch-rs - Node.js Bindings
+# xpatch-rs-native
 
-High-performance delta compression library for Node.js with automatic algorithm selection.
-
-## Installation
+Native Node.js bindings for xpatch - maximum performance delta compression.
 
 ```bash
-npm install xpatch-rs
-# or
-yarn add xpatch-rs
-# or
-pnpm add xpatch-rs
+npm install xpatch-rs-native
 ```
+
+> **Note:** This package provides native bindings for maximum performance (~10-30% faster than WASM). For most use cases, consider [`xpatch-rs`](https://www.npmjs.com/package/xpatch-rs) instead, which uses WASM and works in both browsers and Node.js with a smaller package size (~890KB vs ~2MB per platform).
+
+| Package | Size | Platforms | Performance |
+|---------|------|-----------|-------------|
+| [`xpatch-rs`](https://www.npmjs.com/package/xpatch-rs) | ~890KB | Browser + Node.js | Fast |
+| `xpatch-rs-native` | ~2MB/platform | Node.js only | Fastest |
 
 ## Quick Start
 
 ```javascript
-const xpatch = require('xpatch-rs');
+const xpatch = require('xpatch-rs-native');
 
 // Create a delta patch
 const base = Buffer.from('Hello, World!');
@@ -38,7 +39,7 @@ console.log(`Tag: ${tag}`);
 TypeScript definitions are included:
 
 ```typescript
-import { encode, decode, getTag } from 'xpatch-rs';
+import { encode, decode, getTag } from 'xpatch-rs-native';
 
 const base = Buffer.from('Hello, World!');
 const newData = Buffer.from('Hello, TypeScript!');
@@ -97,16 +98,15 @@ xpatch achieves exceptional compression ratios on real-world data:
 ## Use Cases
 
 Perfect for:
-- Version control systems
-- Document synchronization
-- Incremental backups
-- Network-efficient updates
-- Real-time collaborative editing
+- Performance-critical Node.js server applications
+- High-throughput data processing pipelines
+- Real-time collaborative editing backends
+- Version control system backends
 
 ## Building from Source
 
 ```bash
-cd crates/xpatch-node
+cd crates/xpatch-node-native
 npm install
 npm run build
 ```
@@ -136,4 +136,4 @@ See [LICENSE-AGPL.txt](../../LICENSE-AGPL.txt) and [LICENSE-COMMERCIAL.txt](../.
 
 - [GitHub Repository](https://github.com/ImGajeed76/xpatch)
 - [Demo Editor](https://github.com/ImGajeed76/xpatch_demo_editor)
-- [npm Package](https://www.npmjs.com/package/xpatch-rs)
+- [xpatch-rs](https://www.npmjs.com/package/xpatch-rs) (WASM - recommended for most use cases)

@@ -62,11 +62,11 @@ async function testNode(): Promise<void> {
 
     // Build the package first (needed if clean was run or first time)
     logger.start(`Building Node.js package with ${pm || runtime}`);
-    await liveExec(`cd crates/xpatch-node && ${pm || runtime} install`);
-    await liveExec(`cd crates/xpatch-node && ${pm || runtime} run build:debug`);
+    await liveExec(`cd crates/xpatch-node-native && ${pm || runtime} install`);
+    await liveExec(`cd crates/xpatch-node-native && ${pm || runtime} run build:debug`);
 
     logger.start(`Running Node.js tests with ${runtime}`);
-    await liveExec(`cd crates/xpatch-node && ${runtime} test.js`);
+    await liveExec(`cd crates/xpatch-node-native && ${runtime} test.js`);
     logger.success("Node.js tests passed");
 }
 

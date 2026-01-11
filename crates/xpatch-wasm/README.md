@@ -1,14 +1,21 @@
-# xpatch WebAssembly Bindings
+# xpatch-rs (WASM)
 
-WebAssembly bindings for xpatch, enabling delta compression in browsers and JavaScript runtimes.
+High-performance delta compression library - universal WebAssembly bindings for browser and Node.js.
 
-> **Note**: For Node.js, consider using the [`xpatch-rs`](https://www.npmjs.com/package/xpatch-rs) npm package instead, which provides native bindings. The WASM bindings are primarily for browser usage and custom deployment scenarios.
+```bash
+npm install xpatch-rs
+```
+
+This is the **recommended package** for most use cases. It works in both browsers and Node.js with a single ~890KB package.
+
+> **Need maximum performance?** For performance-critical Node.js server applications, consider [`xpatch-rs-native`](https://www.npmjs.com/package/xpatch-rs-native) which provides native bindings (~10-30% faster).
 
 ## When to Use
 
 - **Browser applications**: Web-based editors, file viewers, collaborative tools
-- **Custom hosting**: Self-hosted applications where you control the build
-- **Universal compatibility**: Environments where native bindings aren't available
+- **Node.js applications**: Universal package that works everywhere
+- **Edge computing**: Cloudflare Workers, Deno, Bun
+- **Cross-platform consistency**: Same package works on all platforms
 
 ## Building
 
@@ -174,17 +181,17 @@ Requires WebAssembly support (Chrome 57+, Firefox 52+, Safari 11+).
 
 Performance characteristics measured on Node.js (WASM runtime overhead applies):
 
-- **Small data** (~13 bytes): ~16 µs encode, ~2 µs decode
-- **Medium data** (10KB): ~49 µs encode, ~13 µs decode
-- **Large data** (100KB): ~112 µs encode, ~39 µs decode
-- **Tag extraction**: <1 µs (0.3 µs typical)
+- **Small data** (~13 bytes): ~10 µs encode, ~1 µs decode
+- **Medium data** (10KB): ~18 µs encode, ~5 µs decode
+- **Large data** (100KB): ~87 µs encode, ~33 µs decode
+- **Tag extraction**: <1 µs
 - **Without zstd**: <1 µs for small payloads
 
 Compression ratios on test data:
-- 100 byte change in 10KB file: **27 bytes** delta (99.7% compression)
-- 500 byte change in 100KB file: **31 bytes** delta (99.97% compression)
+- 1 byte change in 10KB file: **13 bytes** delta (99.87% compression)
+- 1 byte change in 100KB file: **13 bytes** delta (99.99% compression)
 
-**Note:** Browser performance may vary due to JavaScript engine differences. WASM adds overhead compared to native bindings - for Node.js applications, consider the native [`xpatch-rs`](https://www.npmjs.com/package/xpatch-rs) package for better performance.
+**Note:** Browser performance may vary due to JavaScript engine differences. For Node.js applications requiring maximum performance, consider [`xpatch-rs-native`](https://www.npmjs.com/package/xpatch-rs-native) for ~10-30% faster execution.
 
 ## Use Cases
 
@@ -204,7 +211,7 @@ TypeScript definitions are automatically generated in `pkg/xpatch_wasm.d.ts`.
 
 - [GitHub Repository](https://github.com/ImGajeed76/xpatch)
 - [Demo Editor](https://github.com/ImGajeed76/xpatch_demo_editor)
-- [npm Package](https://www.npmjs.com/package/xpatch-rs) (Node.js native bindings)
+- [xpatch-rs-native](https://www.npmjs.com/package/xpatch-rs-native) (Native Node.js bindings for maximum performance)
 - [PyPI Package](https://pypi.org/project/xpatch-rs/) (Python bindings)
 
 ## License

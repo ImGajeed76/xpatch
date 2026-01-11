@@ -42,7 +42,7 @@ const howtos = {
         console.log();
         logger.info("Node.js Bindings:");
         logger.bullet("axogen run build node              Uses bun or npm", 1);
-        logger.bullet("cd crates/xpatch-node && bun install && bun run build", 1);
+        logger.bullet("cd crates/xpatch-node-native && bun install && bun run build", 1);
         console.log();
         logger.info("WebAssembly Bindings:");
         logger.bullet("axogen run build wasm --target web       For browsers", 1);
@@ -72,7 +72,7 @@ const howtos = {
         logger.bullet("cargo test -p xpatch               Direct cargo test", 1);
         logger.bullet("cargo test -p xpatch-c             C bindings tests", 1);
         logger.bullet("cd crates/xpatch-python && python3 tests/test_xpatch.py", 1);
-        logger.bullet("cd crates/xpatch-node && bun test.js", 1);
+        logger.bullet("cd crates/xpatch-node-native && bun test.js", 1);
         logger.bullet("cd crates/xpatch-wasm && wasm-pack test --node", 1);
         console.log();
     },
@@ -100,7 +100,7 @@ const howtos = {
         logger.info("5. Publish Packages:");
         logger.bullet("Rust: cargo publish -p xpatch", 1);
         logger.bullet("Python: cd crates/xpatch-python && maturin publish", 1);
-        logger.bullet("Node: cd crates/xpatch-node && npm publish", 1);
+        logger.bullet("Node: cd crates/xpatch-node-native && npm publish", 1);
         console.log();
         logger.info("6. Create GitHub Release:");
         logger.bullet(`Go to ${metadata.repository}/releases/new`, 1);

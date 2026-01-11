@@ -79,10 +79,10 @@ async function buildNode(release: boolean): Promise<void> {
 
     logger.start(`Building Node.js bindings with ${pm}`);
 
-    await liveExec(`cd crates/xpatch-node && ${pm} install`);
+    await liveExec(`cd crates/xpatch-node-native && ${pm} install`);
 
     const buildCmd = release ? "build" : "build:debug";
-    await liveExec(`cd crates/xpatch-node && ${pm} run ${buildCmd}`);
+    await liveExec(`cd crates/xpatch-node-native && ${pm} run ${buildCmd}`);
 
     logger.success("Node.js build complete");
 }
@@ -146,7 +146,7 @@ async function buildC(release: boolean, example: boolean = false): Promise<void>
     }
 }
 
-async function buildWasm(release: boolean, target: "web" | "nodejs" | "bundler" = "bundler"): Promise<void> {
+async function buildWasm(release: boolean, target: "web" | "nodejs" | "bundler" = "bundler", optimizeSpeed: boolean = true): Promise<void> {
     const wasmPack = await detectTool("wasm-pack", "wasm-pack");
     if (!wasmPack.installed) {
         logger.error("wasm-pack not found");
@@ -158,6 +158,15 @@ async function buildWasm(release: boolean, target: "web" | "nodejs" | "bundler" 
 
     const flags = release ? "--release" : "--dev";
     await liveExec(`cd crates/xpatch-wasm && wasm-pack build ${flags} --target ${target}`);
+
+    // Run additional wasm-opt pass with -O3 for maximum speed
+    if (release && optimizeSpeed) {
+        const wasmOpt = await detectTool("wasm-opt", "wasm-opt");
+        if (wasmOpt.installed) {
+            logger.start("Optimizing WASM for speed (-O3)");
+            await liveExec(`wasm-opt -O3 --enable-bulk-memory crates/xpatch-wasm/pkg/xpatch_wasm_bg.wasm -o crates/xpatch-wasm/pkg/xpatch_wasm_bg.wasm`);
+        }
+    }
 
     logger.success("WASM build complete");
     logger.info(`📦 Package location: crates/xpatch-wasm/pkg/`);

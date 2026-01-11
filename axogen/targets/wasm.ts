@@ -6,9 +6,9 @@ export const wasmTarget = template({
     template: "axogen/templates/wasm-package.json.njk",
     engine: "nunjucks",
     variables: {
-        wasmPackageName: "xpatch-wasm",
+        wasmPackageName: metadata.wasmPackageName,
         version: metadata.version,
-        description: "WebAssembly bindings for xpatch - high-performance delta compression library",
+        description: "High-performance delta compression library - universal WASM bindings for browser and Node.js",
         author: unsafe(metadata.author!, "Author name is not a secret"),
         license: metadata.license,
         homepage: metadata.homepage,

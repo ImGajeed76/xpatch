@@ -1,6 +1,6 @@
 # Development Guide
 
-This guide provides instructions for building, testing, and contributing to xpatch (v0.3.1).
+This guide provides instructions for building, testing, and contributing to xpatch (v0.4.0).
 
 ## Table of Contents
 
@@ -123,7 +123,7 @@ xpatch/
 │   │   ├── Cargo.toml
 │   │   ├── pyproject.toml          # Auto-generated from axogen
 │   │   └── src/lib.rs
-│   ├── xpatch-node/                # Node.js bindings (NAPI-RS)
+│   ├── xpatch-node-native/                # Node.js bindings (NAPI-RS)
 │   │   ├── Cargo.toml
 │   │   ├── package.json            # Auto-generated from axogen
 │   │   └── src/lib.rs
@@ -225,7 +225,7 @@ maturin build --release      # Release
 
 **Node.js:**
 ```bash
-cd crates/xpatch-node
+cd crates/xpatch-node-native
 bun install && bun run build        # If using Bun
 npm install && npm run build        # If using npm
 ```
@@ -302,7 +302,7 @@ python tests/test_xpatch.py
 
 **Node.js:**
 ```bash
-cd crates/xpatch-node
+cd crates/xpatch-node-native
 bun test.js    # Or: node test.js
 ```
 
@@ -394,7 +394,7 @@ python tests/test_xpatch.py
 ### Node.js Development Workflow
 
 ```bash
-cd crates/xpatch-node
+cd crates/xpatch-node-native
 bun install                  # Or: npm install
 bun run build:debug          # Or: npm run build:debug
 bun test.js                  # Or: npm test
@@ -547,8 +547,8 @@ pip install target/wheels/xpatch_rs-*.whl
 **Option 1: Using npm link**
 
 ```bash
-# In xpatch-node directory
-cd crates/xpatch-node
+# In xpatch-node-native directory
+cd crates/xpatch-node-native
 npm run build
 npm link
 
@@ -559,8 +559,8 @@ npm link xpatch-rs
 **Option 2: Using bun link**
 
 ```bash
-# In xpatch-node directory
-cd crates/xpatch-node
+# In xpatch-node-native directory
+cd crates/xpatch-node-native
 bun run build
 bun link
 
@@ -572,9 +572,9 @@ bun link xpatch-rs
 
 ```bash
 # In your test project
-npm install /path/to/xpatch/crates/xpatch-node
+npm install /path/to/xpatch/crates/xpatch-node-native
 # Or
-bun add /path/to/xpatch/crates/xpatch-node
+bun add /path/to/xpatch/crates/xpatch-node-native
 ```
 
 **Option 4: Using package.json dependency**
@@ -584,7 +584,7 @@ In your test project's `package.json`:
 ```json
 {
   "dependencies": {
-    "xpatch-rs": "file:../path/to/xpatch/crates/xpatch-node"
+    "xpatch-rs": "file:../path/to/xpatch/crates/xpatch-node-native"
   }
 }
 ```

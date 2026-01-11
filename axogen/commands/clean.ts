@@ -34,9 +34,9 @@ export const cleanCommand = cmd({
         console.log();
         logger.divider("Node.js");
         logger.info("Cleaning Node.js build artifacts");
-        await liveExec("rm -rf crates/xpatch-node/target");
-        await liveExec("rm -rf crates/xpatch-node/*.node");
-        await liveExec("rm -rf crates/xpatch-node/artifacts");
+        await liveExec("rm -rf crates/xpatch-node-native/target");
+        await liveExec("rm -rf crates/xpatch-node-native/*.node");
+        await liveExec("rm -rf crates/xpatch-node-native/artifacts");
 
         console.log();
         logger.success("All build artifacts cleaned");

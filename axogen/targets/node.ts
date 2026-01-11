@@ -2,7 +2,7 @@ import { template, unsafe } from "@axonotes/axogen";
 import { metadata } from "../metadata.ts";
 
 export const nodeTarget = template({
-    path: "crates/xpatch-node/package.json",
+    path: "crates/xpatch-node-native/package.json",
     template: "axogen/templates/package.json.njk",
     engine: "nunjucks",
     variables: {
