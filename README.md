@@ -8,12 +8,10 @@
 
 A high-performance delta compression library with automatic algorithm selection, available for **Rust**, **C/C++**, **Python**, **Node.js**, **WebAssembly**, and as a **CLI tool**.
 
-## Demo
+## Demos
 
-**[🚀 Try the live demo →](https://github.com/ImGajeed76/xpatch_demo_editor)**
-
-A lightning-fast markdown editor showcasing xpatch's compression and time-travel capabilities. Watch it achieve
-crazy space savings while scrubbing through document history like a video timeline.
+- **[📊 (web) Algorithm Comparison](https://xpatch-webdemo.vercel.app/)** - Compare xpatch against xdelta3, bsdiff, and fossil-delta with interactive benchmarks
+- **[🎨 (app) Markdown Editor](https://github.com/ImGajeed76/xpatch_demo_editor)** - Watch xpatch achieve crazy space savings while scrubbing through document history like a video timeline
 
 ## Features
 
@@ -604,6 +602,7 @@ Results are saved to timestamped files in `benchmark_results/` with both JSON an
 
 - [gdelta](https://github.com/ImGajeed76/gdelta) - General-purpose delta compression algorithm used by xpatch
 - [xpatch Demo Editor](https://github.com/ImGajeed76/xpatch_demo_editor) - Live demo showcasing xpatch capabilities
+- [xpatch Web Demo](https://xpatch-webdemo.vercel.app/) - Interactive comparison of xpatch vs other delta compression algorithms
 
 ## License
 
