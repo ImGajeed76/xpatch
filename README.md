@@ -603,6 +603,7 @@ Results are saved to timestamped files in `benchmark_results/` with both JSON an
 - [gdelta](https://github.com/ImGajeed76/gdelta) - General-purpose delta compression algorithm used by xpatch
 - [xpatch Demo Editor](https://github.com/ImGajeed76/xpatch_demo_editor) - Live demo showcasing xpatch capabilities
 - [xpatch Web Demo](https://xpatch-webdemo.vercel.app/) - Interactive comparison of xpatch vs other delta compression algorithms
+- [Check it out on my website](https://oseifert.ch/projects/xpatch-1111)
 
 ## License
 
